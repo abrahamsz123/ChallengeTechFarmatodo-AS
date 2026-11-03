@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title inertia>Farmatodo - VP Finanzas</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            farmatodo: {
+              navy: '#002B66',
+              blue: '#0052CC',
+              light: '#EBF3FF',
+              accent: '#00A3BF',
+              dark: '#0A192F',
+            },
+          },
+        },
+      },
+    }
+  </script>
+
+  @stack('dumper')
+  @viteReactRefresh()
+  @inertiaHead()
+  @vite(['inertia/app/app.tsx', `inertia/pages/${page.component}.tsx`])
+</head>
+
+<body class="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-blue-600 selection:text-white">
+  @inertia()
+</body>
+
+</html>
