@@ -63,13 +63,13 @@ export default function CargosPage({ cargos, departamentos }: Props) {
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-indigo-700 uppercase tracking-wider mb-1">
               <Layers className="w-4 h-4" />
-              <span>Módulo Organizacional (Dummy 2)</span>
+              <span>Catálogo de Cargos & Responsabilidades</span>
             </div>
             <h1 className="text-2xl font-black text-[#002B66] tracking-tight">
               Fichas de Cargos & Funciones
             </h1>
             <p className="text-slate-500 text-xs mt-1">
-              Catálogo de responsabilidades, roles de control y niveles de seniority en la VP.
+              Estructura de perfiles, niveles de seniority y responsabilidades de la Vicepresidencia de Finanzas.
             </p>
           </div>
 
@@ -139,9 +139,12 @@ export default function CargosPage({ cargos, departamentos }: Props) {
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-indigo-600 font-semibold group-hover:underline">
-                <span>Ver funciones completas</span>
-                <span className="text-slate-400 font-normal text-[11px]">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-indigo-600 font-semibold group-hover:text-indigo-800">
+                <span className="flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" />
+                  Ver detalle y colaboradores
+                </span>
+                <span className="text-slate-500 font-medium text-[11px] bg-slate-100 px-2 py-0.5 rounded-full">
                   {cargo.colaboradores?.length || 0} asignados
                 </span>
               </div>
@@ -152,7 +155,7 @@ export default function CargosPage({ cargos, departamentos }: Props) {
         {/* Modal de Detalle de Cargo */}
         {selectedCargo && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-5 animate-in fade-in zoom-in-95">
+            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
@@ -165,35 +168,79 @@ export default function CargosPage({ cargos, departamentos }: Props) {
                 <button
                   type="button"
                   onClick={() => setSelectedCargo(null)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${getSeniorityColor(selectedCargo.nivelSeniority)}`}>
                   Nivel: {selectedCargo.nivelSeniority}
                 </span>
                 <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                  Código: {selectedCargo.departamento?.codigo}
+                  Código Dpto: {selectedCargo.departamento?.codigo}
                 </span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Funciones y Responsabilidades Principales
                 </h4>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-700 leading-relaxed space-y-2">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-700 leading-relaxed">
                   <p>{selectedCargo.funcionesPrincipales}</p>
                 </div>
               </div>
 
-              <div className="p-3.5 bg-blue-50 border border-blue-100 rounded-2xl text-xs text-blue-900 flex items-center gap-2.5">
-                <ShieldAlert className="w-5 h-5 text-blue-600 shrink-0" />
-                <span>
-                  Cargo sujeto a políticas de <strong>Control Interno y Segregación de Funciones</strong> de la VP de Finanzas.
-                </span>
+              {/* Lista de Colaboradores Asignados */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-indigo-600" />
+                    Colaboradores Asignados a este Cargo
+                  </h4>
+                  <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {selectedCargo.colaboradores?.length || 0} personas
+                  </span>
+                </div>
+
+                <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                  {selectedCargo.colaboradores && selectedCargo.colaboradores.length > 0 ? (
+                    selectedCargo.colaboradores.map((colab: any) => (
+                      <div
+                        key={colab.id}
+                        className="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-2xl border border-slate-100 flex items-center justify-between gap-3 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-100 text-indigo-800 border border-indigo-200 font-bold text-xs flex items-center justify-center shrink-0">
+                            {colab.nombreCompleto?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-xs text-slate-900 truncate">
+                              {colab.nombreCompleto}
+                            </p>
+                            <p className="text-[11px] text-slate-500 truncate">
+                              {colab.email}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-[11px] font-medium text-slate-500 block">
+                            {colab.pais === 'Venezuela' ? '🇻🇪 Venezuela' : '🇦🇷 Argentina'}
+                          </span>
+                          <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-bold uppercase">
+                            {colab.estado}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center text-xs text-slate-400">
+                      No hay colaboradores asignados actualmente a este cargo.
+                    </div>
+                  )}
+                </div>
               </div>
 
               <button

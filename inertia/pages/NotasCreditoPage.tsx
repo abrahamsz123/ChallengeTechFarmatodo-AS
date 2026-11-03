@@ -250,13 +250,13 @@ export default function NotasCreditoPage({ notas, kpis, tiendas, companias, depa
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
               <FileCheck2 className="w-4 h-4" />
-              <span>Módulo Funcional a Profundidad (Sección 3.4)</span>
+              <span>Módulo de Control & Gestión</span>
             </div>
             <h1 className="text-2xl font-black text-[#002B66] tracking-tight">
               Flujo de Notas de Crédito & Control Interno
             </h1>
             <p className="text-slate-500 text-xs mt-1">
-              Persistencia relacional, evaluación automática de riesgo y Segregación de Funciones (SoD).
+              Registro comercial, evaluación de riesgo financiero y trazabilidad de autorizaciones con Segregación de Funciones.
             </p>
           </div>
 

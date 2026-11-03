@@ -41,7 +41,10 @@ export default class OrganizacionController {
   public async cargos({ inertia, request, response }: HttpContext) {
     const cargos = await Cargo.query()
       .preload('departamento')
-      .preload('colaboradores')
+      .preload('colaboradores', (q) => {
+        q.preload('departamento')
+        q.orderBy('nombreCompleto', 'asc')
+      })
       .orderBy('departamentoId', 'asc')
 
     const departamentos = await Departamento.query().orderBy('id', 'asc')
