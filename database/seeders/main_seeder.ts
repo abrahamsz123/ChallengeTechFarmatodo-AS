@@ -10,7 +10,7 @@ export default class extends BaseSeeder {
     // =========================================================================
     // 1. DEPARTAMENTOS DE LA VP DE FINANZAS (5 Departamentos - Mínimo 4)
     // =========================================================================
-    const departamentos = await db
+    await db
       .table('departamentos')
       .insert([
         { id: 1, nombre: 'Planificación Financiera', codigo: 'PLAN_FIN', descripcion: 'Modelado financiero, presupuestos y control de gestión' },

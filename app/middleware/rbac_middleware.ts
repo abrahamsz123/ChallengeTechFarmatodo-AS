@@ -13,8 +13,10 @@ export default class RbacMiddleware {
   ) {
     const user = ctx.auth.use('web').user
 
+    const wantsJson = ctx.request.url().startsWith('/api') || ctx.request.header('accept')?.includes('json')
+
     if (!user) {
-      if (ctx.request.wantsJSON()) {
+      if (wantsJson) {
         return ctx.response.unauthorized({ message: 'No autenticado. Inicie sesión en el portal.' })
       }
       return ctx.response.redirect().toPath('/login')
@@ -27,7 +29,7 @@ export default class RbacMiddleware {
 
     // 2. Validación de Roles Permitidos
     if (options.roles && !options.roles.includes(user.rol)) {
-      if (ctx.request.wantsJSON()) {
+      if (wantsJson) {
         return ctx.response.forbidden({
           error: 'RBAC_FORBIDDEN',
           message: `Acceso denegado: Se requiere rol [${options.roles.join(', ')}]. Tu rol actual es [${user.rol}].`,
@@ -40,7 +42,7 @@ export default class RbacMiddleware {
     // 3. Regla de Negocio: Segregación de Funciones (SoD) para Aprobaciones
     if (options.action === 'approve') {
       if (user.rol === 'colaborador') {
-        if (ctx.request.wantsJSON()) {
+        if (wantsJson) {
           return ctx.response.forbidden({
             error: 'SOD_VIOLATION',
             message: 'Violación de Segregación de Funciones (SoD): Un colaborador no puede aprobar notas de crédito.',
@@ -55,7 +57,7 @@ export default class RbacMiddleware {
     // Un Jefe de Departamento solo puede operar o auditar dentro de su propio departamento
     if (user.rol === 'jefe' && options.allowedDepartments) {
       if (!options.allowedDepartments.includes(user.departamentoId)) {
-        if (ctx.request.wantsJSON()) {
+        if (wantsJson) {
           return ctx.response.forbidden({
             error: 'DEPARTMENT_MISMATCH',
             message: 'Acceso denegado: Los Jefes de Departamento solo pueden operar datos de su propia unidad organizativa.',

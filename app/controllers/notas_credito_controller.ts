@@ -147,7 +147,8 @@ export default class NotasCreditoController {
       .whereIn('codigo', ['CXP', 'CXC'])
       .orderBy('nombre', 'asc')
 
-    if (request.wantsJSON()) {
+    const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+    if (wantsJson) {
       return response.ok({
         kpis,
         notas,
@@ -230,7 +231,8 @@ export default class NotasCreditoController {
 
     const msg = `Nota de crédito #${nota.id} registrada con éxito. Nivel de Riesgo asignado: ${level} (${score}/100).`
 
-    if (request.wantsJSON()) {
+    const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+    if (wantsJson) {
       return response.created({ message: msg, nota })
     }
 
@@ -272,7 +274,8 @@ export default class NotasCreditoController {
     // =========================================================================
     if (nota.creadoPorId && nota.creadoPorId === user.id) {
       const msg = '⛔ Violación de Segregación de Funciones (SoD): El colaborador solicitante no tiene autorización para aprobar su propia solicitud.'
-      if (request.wantsJSON()) {
+      const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+    if (wantsJson) {
         return response.forbidden({ error: 'SOD_VIOLATION', message: msg })
       }
       session.flash('error', msg)
@@ -285,7 +288,8 @@ export default class NotasCreditoController {
     // =========================================================================
     if (user.rol === 'colaborador') {
       const msg = '⛔ Acceso denegado: Los colaboradores no poseen facultades jerárquicas para autorizar desembolsos o notas de crédito.'
-      if (request.wantsJSON()) {
+      const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+    if (wantsJson) {
         return response.forbidden({ error: 'FORBIDDEN_ROLE', message: msg })
       }
       session.flash('error', msg)
@@ -298,7 +302,8 @@ export default class NotasCreditoController {
     // =========================================================================
     if (user.rol === 'jefe' && nota.departamentoId && user.departamentoId !== nota.departamentoId) {
       const msg = '⛔ Acceso denegado: Esta nota de crédito pertenece a otro departamento de la VP de Finanzas.'
-      if (request.wantsJSON()) {
+      const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+    if (wantsJson) {
         return response.forbidden({ error: 'DEPARTMENT_MISMATCH', message: msg })
       }
       session.flash('error', msg)
@@ -310,7 +315,8 @@ export default class NotasCreditoController {
     // =========================================================================
     if (nota.estado !== 'pendiente') {
       const msg = `La nota de crédito #${nota.id} ya se encuentra resuelta con estado [${nota.estado.toUpperCase()}].`
-      if (request.wantsJSON()) {
+      const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+    if (wantsJson) {
         return response.badRequest({ message: msg })
       }
       session.flash('error', msg)
@@ -341,7 +347,8 @@ export default class NotasCreditoController {
 
     const successMsg = `Nota de Crédito #${nota.id} ha sido ${accion.toUpperCase()} exitosamente por ${user.nombreCompleto}.`
 
-    if (request.wantsJSON()) {
+    const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+    if (wantsJson) {
       return response.ok({ message: successMsg, nota })
     }
 

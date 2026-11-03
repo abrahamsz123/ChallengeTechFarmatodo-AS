@@ -21,7 +21,8 @@ export default class OrganizacionController {
       .preload('cargo')
       .orderBy('nombreCompleto', 'asc')
 
-    if (request.wantsJSON()) {
+    const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+    if (wantsJson) {
       return response.ok({
         departamentos,
         colaboradores,
@@ -45,7 +46,8 @@ export default class OrganizacionController {
 
     const departamentos = await Departamento.query().orderBy('id', 'asc')
 
-    if (request.wantsJSON()) {
+    const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+    if (wantsJson) {
       return response.ok({
         cargos,
         departamentos,

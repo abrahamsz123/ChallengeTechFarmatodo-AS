@@ -28,7 +28,8 @@ export default class AuthController {
 
       await auth.use('web').login(user)
 
-      if (request.wantsJSON()) {
+      const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+      if (wantsJson) {
         await user.load('departamento')
         await user.load('cargo')
         return response.ok({
