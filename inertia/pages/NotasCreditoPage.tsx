@@ -794,35 +794,6 @@ export default function NotasCreditoPage({ notas, kpis, tiendas, companias, depa
             </div>
           </div>
         )}
-
-                {/* Previsualización en Vivo del Risk Score */}
-                {createForm.data.monto && (
-                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between text-xs">
-                    <span className="font-semibold text-blue-900">Previsualización de Riesgo:</span>
-                    {getRiskBadge(previewScore().level, previewScore().score)}
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={createForm.processing}
-                    className="flex-1 py-2.5 bg-[#0052CC] hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-all disabled:opacity-50"
-                  >
-                    {createForm.processing ? 'Registrando...' : 'Emitir Solicitud'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
       </div>
     </Layout>
   );
