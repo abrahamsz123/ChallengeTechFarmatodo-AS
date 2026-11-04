@@ -22,6 +22,8 @@ import {
   ShieldAlert,
   Sparkles,
   AlertCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 interface Tienda {
@@ -199,6 +201,21 @@ export default function NotasCreditoPage({
     const creadorMatch = (nota.creador?.nombreCompleto || '').toLowerCase().includes(term);
     return idMatch || motivoMatch || provMatch || tiendaMatch || dptoMatch || creadorMatch;
   });
+
+  // Paginación: 15 notas por página
+  const ITEMS_PER_PAGE = 15;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Reset de página al cambiar filtros o búsqueda
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, estadoFilter, monedaFilter, riskFilter]);
+
+  const totalPages = Math.ceil(filteredNotas.length / ITEMS_PER_PAGE) || 1;
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredNotas.length);
+  const paginatedNotas = filteredNotas.slice(startIndex, endIndex);
 
   const applyFilters = (newFilters: any) => {
     router.get('/dashboard/notas-credito', {
@@ -540,7 +557,7 @@ export default function NotasCreditoPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredNotas.map((nota) => (
+                {paginatedNotas.map((nota) => (
                   <tr key={nota.id} className="hover:bg-blue-50/40 transition-colors group">
                     <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
                       #{nota.id}
@@ -599,6 +616,58 @@ export default function NotasCreditoPage({
           {filteredNotas.length === 0 && (
             <div className="p-12 text-center text-slate-400 text-sm">
               No se encontraron notas de crédito con los filtros seleccionados.
+            </div>
+          )}
+
+          {/* Barra de Paginación Ejecutiva */}
+          {filteredNotas.length > 0 && (
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+              <div className="font-medium text-slate-600">
+                Mostrando <strong className="text-slate-900">{startIndex + 1}</strong> a{' '}
+                <strong className="text-slate-900">{endIndex}</strong> de{' '}
+                <strong className="text-slate-900">{filteredNotas.length}</strong> solicitudes
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                    disabled={safePage === 1}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Anterior</span>
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 rounded-xl font-bold text-xs transition-all flex items-center justify-center ${
+                          safePage === page
+                            ? 'bg-[#002B66] text-white shadow-sm'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={safePage === totalPages}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs"
+                  >
+                    <span>Siguiente</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
