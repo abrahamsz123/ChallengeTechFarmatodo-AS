@@ -850,8 +850,8 @@ export default function NotasCreditoPage({
                   </div>
                 </div>
 
-                {/* Panel de Dictamen DOA o Alerta Informativa */}
-                {canUserApprove ? (
+                {/* Panel de Dictamen DOA (Solo visible si el usuario tiene facultad de aprobar) */}
+                {canUserApprove && (
                   <div className="pt-3 border-t border-slate-100 space-y-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
                       <UserCheck className="w-4 h-4 text-blue-600" />
@@ -906,37 +906,6 @@ export default function NotasCreditoPage({
                         <span>Rechazar Solicitud</span>
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <div className="pt-2">
-                    {isCreator ? (
-                      <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs flex items-start gap-2.5">
-                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                        <div className="text-[11px] text-amber-900 leading-snug">
-                          <strong>Segregación de Funciones (SoD) Activa:</strong> Registraste esta solicitud. La política corporativa prohíbe la autoaprobación; un superior o jefe par debe emitir el dictamen.
-                        </div>
-                      </div>
-                    ) : alreadySignedFirst ? (
-                      <div className="p-3.5 bg-indigo-50 rounded-2xl border border-indigo-200 text-xs flex items-start gap-2.5">
-                        <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                        <div className="text-[11px] text-indigo-900 leading-snug">
-                          <strong>Control Dual (Principio de 4 Ojos):</strong> Ya emitiste la 1ra firma de autorización. La 2da firma mancomunada debe ser completada por un segundo usuario independiente.
-                        </div>
-                      </div>
-                    ) : isColaborador ? (
-                      <div className="p-3.5 bg-slate-100 rounded-2xl border border-slate-200 text-xs flex items-start gap-2.5">
-                        <UserCheck className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-                        <div className="text-[11px] text-slate-600 leading-snug">
-                          <strong>Perfil Colaborador:</strong> Tu rol no posee facultades de aprobación delegadas (DOA). Esta solicitud debe ser resuelta por Jefatura o Administrador.
-                        </div>
-                      </div>
-                    ) : isResolved ? (
-                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-center text-xs text-slate-500 font-medium">
-                        {selectedNota.estado === 'aprobada'
-                          ? '✓ Solicitud autorizada en su totalidad con trazabilidad completa en auditoría.'
-                          : '✕ Solicitud rechazada por dictamen de control interno.'}
-                      </div>
-                    ) : null}
                   </div>
                 )}
 
