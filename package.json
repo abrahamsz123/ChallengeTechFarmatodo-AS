@@ -66,6 +66,7 @@
     "@inertiajs/react": "^2.3.11",
     "@vinejs/vine": "^3.0.1",
     "axios": "^1.15.0",
+    "cheerio": "^1.0.0",
     "edge.js": "^6.2.1",
     "lucide-react": "^0.563.0",
     "luxon": "^3.7.2",

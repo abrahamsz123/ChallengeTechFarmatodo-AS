@@ -1,5 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
+import https from 'node:https'
+import axios from 'axios'
+import * as cheerio from 'cheerio'
 import NotaCredito from '#models/nota_credito'
 import NotaCreditoAuditoria from '#models/nota_credito_auditoria'
 import Tienda from '#models/tienda'
@@ -7,32 +10,63 @@ import Compania from '#models/compania'
 import Departamento from '#models/departamento'
 
 /**
- * Función Heurística del Motor de Scoring de Control Interno
+ * Web Scraping en vivo del Banco Central de Venezuela (BCV)
+ * Idéntico a la implementación oficial de EIR Plus.
+ * Extrae la tasa del dólar oficial (#dolar strong) y aplica redondeo matemático estricto a 2 decimales.
  */
-export function calculateRiskScore(monto: number, moneda: string, motivo: string, companiaId: number) {
+export async function getBcvExchangeRate(): Promise<number> {
+  try {
+    const httpsAgent = new https.Agent({ rejectUnauthorized: false })
+    const { data } = await axios.get('https://www.bcv.org.ve/', {
+      timeout: 10000,
+      httpsAgent,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+      },
+    })
+    const $ = cheerio.load(data)
+    const usdText = $('#dolar strong').text().trim().replace(',', '.')
+    const usdRaw = parseFloat(usdText) || 0
+
+    if (usdRaw > 0) {
+      // Redondeo matemático estricto a 2 decimales (si el 3er decimal >= 5, aumenta el 2do)
+      return Math.round(usdRaw * 100) / 100
+    }
+  } catch (error: any) {
+    console.error('Error al consultar BCV oficial en vivo:', error.message)
+  }
+
+  // Tasa de contingencia operativa si la web del BCV no responde
+  return 893.22
+}
+
+/**
+ * 1. Algoritmo de Evaluación de Riesgo para Dólares (USD)
+ */
+export function evaluateUsdRisk(monto: number, motivo: string, companiaId: number) {
   let score = 0
   const justificaciones: string[] = []
 
-  // 1. Normalización y evaluación de Monto
-  const montoUSD = moneda === 'VES' ? monto / 45 : monto // Conversión referencial a USD para ponderar
-
-  if (montoUSD > 3000) {
+  // 1. Umbrales de Monto en USD
+  if (monto > 3000) {
     score += 50
-    justificaciones.push(`Monto crítico (${monto.toLocaleString()} ${moneda} > umbral superior de farmacia)`)
-  } else if (montoUSD > 1000) {
+    justificaciones.push(`Monto crítico financiero ($${monto.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD > umbral $3.000)`)
+  } else if (monto >= 1000) {
     score += 30
-    justificaciones.push(`Monto moderado (${monto.toLocaleString()} ${moneda})`)
+    justificaciones.push(`Monto moderado ($${monto.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD)`)
   } else {
     score += 15
-    justificaciones.push(`Monto bajo dentro del margen estándar`)
+    justificaciones.push(`Monto bajo dentro del margen estándar ($${monto.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD < $1.000)`)
   }
 
   // 2. Evaluación del Motivo de Reclamación
   const motivoLower = motivo.toLowerCase()
-  if (motivoLower.includes('mal estado') || motivoLower.includes('vencimiento') || motivoLower.includes('avería') || motivoLower.includes('roto')) {
+  if (motivoLower.includes('mal estado') || motivoLower.includes('vencimiento') || motivoLower.includes('avería') || motivoLower.includes('roto') || motivoLower.includes('merma')) {
     score += 35
     justificaciones.push('Afectación física de inventario (merma / avería de producto en despacho)')
-  } else if (motivoLower.includes('diferencia') || motivoLower.includes('error') || motivoLower.includes('duplicidad')) {
+  } else if (motivoLower.includes('diferencia') || motivoLower.includes('error') || motivoLower.includes('duplicidad') || motivoLower.includes('precio')) {
     score += 20
     justificaciones.push('Inconsistencia administrativa / descuadre documental de factura')
   } else {
@@ -40,7 +74,7 @@ export function calculateRiskScore(monto: number, moneda: string, motivo: string
     justificaciones.push('Ajuste comercial ordinario por volumen o pronto pago')
   }
 
-  // 3. Frecuencia de Reclamaciones del Proveedor
+  // 3. Proveedor con histórico crítico
   if (companiaId === 4 || companiaId === 6) {
     score += 15
     justificaciones.push('Proveedor con historial de alta recurrencia de reclamos')
@@ -53,7 +87,79 @@ export function calculateRiskScore(monto: number, moneda: string, motivo: string
     score,
     level,
     justification: justificaciones.join(' • '),
+    tasaCambioBcv: null,
+    montoUsdEquivalente: monto,
   }
+}
+
+/**
+ * 2. Algoritmo de Evaluación de Riesgo para Bolívares (VES)
+ * Convierte automáticamente a Dólares con la tasa oficial BCV del día
+ * y evalúa el riesgo financiero sobre el valor real equivalente.
+ */
+export async function evaluateVesRisk(montoVes: number, motivo: string, companiaId: number, tasaManual?: number) {
+  const tasaBcv = tasaManual && tasaManual > 0 ? tasaManual : await getBcvExchangeRate()
+  const montoUsdEquivalente = Math.round((montoVes / tasaBcv) * 100) / 100
+
+  let score = 0
+  const justificaciones: string[] = []
+
+  // Indicador explícito de conversión cambiaria oficial BCV
+  justificaciones.push(
+    `Conversión BCV Oficial: Bs. ${montoVes.toLocaleString('es-VE', { minimumFractionDigits: 2 })} equivalen a $${montoUsdEquivalente.toFixed(2)} USD (Tasa BCV del día: Bs. ${tasaBcv.toFixed(2)}/USD)`
+  )
+
+  // 1. Umbral Financiero sobre el equivalente real en USD
+  if (montoUsdEquivalente > 3000) {
+    score += 50
+    justificaciones.push('Monto crítico financiero (> $3.000 USD)')
+  } else if (montoUsdEquivalente >= 1000) {
+    score += 30
+    justificaciones.push('Monto moderado ($1.000 - $3.000 USD)')
+  } else {
+    score += 15
+    justificaciones.push('Monto bajo dentro del margen estándar (< $1.000 USD)')
+  }
+
+  // 2. Evaluación del Motivo de Reclamación
+  const motivoLower = motivo.toLowerCase()
+  if (motivoLower.includes('mal estado') || motivoLower.includes('vencimiento') || motivoLower.includes('avería') || motivoLower.includes('roto') || motivoLower.includes('merma')) {
+    score += 35
+    justificaciones.push('Afectación física de inventario (merma / avería de producto en despacho)')
+  } else if (motivoLower.includes('diferencia') || motivoLower.includes('error') || motivoLower.includes('duplicidad') || motivoLower.includes('precio')) {
+    score += 20
+    justificaciones.push('Inconsistencia administrativa / descuadre documental de factura')
+  } else {
+    score += 10
+    justificaciones.push('Ajuste comercial ordinario por volumen o pronto pago')
+  }
+
+  // 3. Proveedor con histórico crítico
+  if (companiaId === 4 || companiaId === 6) {
+    score += 15
+    justificaciones.push('Proveedor con historial de alta recurrencia de reclamos')
+  }
+
+  score = Math.min(score, 100)
+  const level: 'BAJO' | 'MEDIO' | 'ALTO' = score >= 70 ? 'ALTO' : score >= 40 ? 'MEDIO' : 'BAJO'
+
+  return {
+    score,
+    level,
+    justification: justificaciones.join(' • '),
+    tasaCambioBcv: tasaBcv,
+    montoUsdEquivalente,
+  }
+}
+
+/**
+ * Función puente compatible con llamadas existentes
+ */
+export async function calculateRiskScore(monto: number, moneda: string, motivo: string, companiaId: number) {
+  if (moneda === 'VES') {
+    return evaluateVesRisk(monto, motivo, companiaId)
+  }
+  return evaluateUsdRisk(monto, motivo, companiaId)
 }
 
 export default class NotasCreditoController {
@@ -147,6 +253,9 @@ export default class NotasCreditoController {
       .whereIn('codigo', ['CXP', 'CXC'])
       .orderBy('nombre', 'asc')
 
+    // Tasa de cambio oficial del BCV del día
+    const tasaBcv = await getBcvExchangeRate()
+
     const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
     if (wantsJson) {
       return response.ok({
@@ -154,6 +263,7 @@ export default class NotasCreditoController {
         notas,
         tiendas,
         companias,
+        tasaBcv,
       })
     }
 
@@ -163,6 +273,7 @@ export default class NotasCreditoController {
       tiendas,
       companias,
       departamentos,
+      tasaBcv,
       filtros: { estado, moneda, riskLevel, search },
     })
   }
@@ -198,15 +309,22 @@ export default class NotasCreditoController {
       deptoId = 5
     }
 
-    // Cálculo automático del Risk Score mediante el motor de control interno
-    const { score, level, justification } = calculateRiskScore(
-      montoNum,
-      data.moneda,
-      data.motivo,
-      Number(data.compania_id)
-    )
+    // Evaluación diferenciada según moneda (Web scraping BCV para VES, o evaluación directa para USD)
+    let evaluacion: {
+      score: number
+      level: 'BAJO' | 'MEDIO' | 'ALTO'
+      justification: string
+      tasaCambioBcv: number | null
+      montoUsdEquivalente: number | null
+    }
 
-    // Crear la nota de crédito
+    if (data.moneda === 'VES') {
+      evaluacion = await evaluateVesRisk(montoNum, data.motivo, Number(data.compania_id))
+    } else {
+      evaluacion = evaluateUsdRisk(montoNum, data.motivo, Number(data.compania_id))
+    }
+
+    // Crear la nota de crédito con la tasa del día guardada en BDD
     const nota = await NotaCredito.create({
       monto: montoNum,
       moneda: data.moneda,
@@ -217,24 +335,32 @@ export default class NotasCreditoController {
       departamentoId: deptoId,
       creadoPorId: user.id, // VITAL: Registra quién solicita para Segregación de Funciones
       estado: 'pendiente',
-      riskScore: score,
-      riskLevel: level,
-      riskJustification: justification,
+      riskScore: evaluacion.score,
+      riskLevel: evaluacion.level,
+      riskJustification: evaluacion.justification,
+      tasaCambioBcv: evaluacion.tasaCambioBcv,
+      montoUsdEquivalente: evaluacion.montoUsdEquivalente,
       fechaCreacion: DateTime.now(),
     })
 
-    // Registrar en la tabla de auditoría inmutable
+    // Registrar en la tabla de auditoría inmutable con constancia de la tasa aplicada
+    const comentarioAuditoria = data.moneda === 'VES'
+      ? `Solicitud registrada por ${user.nombreCompleto} (${user.rol.toUpperCase()}). Monto: Bs. ${montoNum.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (Tasa BCV Oficial: Bs. ${evaluacion.tasaCambioBcv?.toFixed(2)}/USD · Equivalente: $${evaluacion.montoUsdEquivalente?.toFixed(2)} USD). Evaluación de Riesgo: ${evaluacion.level} (${evaluacion.score}/100)`
+      : `Solicitud registrada por ${user.nombreCompleto} (${user.rol.toUpperCase()}). Evaluación de Riesgo: ${evaluacion.level} (${evaluacion.score}/100)`
+
     await NotaCreditoAuditoria.create({
       notaCreditoId: nota.id,
       userId: user.id,
       accion: 'creacion',
       estadoAnterior: null,
       estadoNuevo: 'pendiente',
-      comentario: `Solicitud registrada por ${user.nombreCompleto} (${user.rol.toUpperCase()}). Evaluación de Riesgo: ${level} (${score}/100)`,
+      comentario: comentarioAuditoria,
       fecha: DateTime.now(),
     })
 
-    const msg = `Nota de crédito #${nota.id} registrada con éxito. Nivel de Riesgo asignado: ${level} (${score}/100).`
+    const msg = data.moneda === 'VES'
+      ? `Nota de crédito #${nota.id} registrada con éxito. Tasa oficial BCV aplicada: Bs. ${evaluacion.tasaCambioBcv?.toFixed(2)}/USD. Nivel de Riesgo asignado: ${evaluacion.level} (${evaluacion.score}/100).`
+      : `Nota de crédito #${nota.id} registrada con éxito. Nivel de Riesgo asignado: ${evaluacion.level} (${evaluacion.score}/100).`
 
     const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
     if (wantsJson) {

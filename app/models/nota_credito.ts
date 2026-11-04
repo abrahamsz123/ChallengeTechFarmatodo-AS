@@ -49,6 +49,12 @@ export default class NotaCredito extends BaseModel {
   @column()
   declare riskJustification: string | null
 
+  @column()
+  declare tasaCambioBcv: number | null
+
+  @column()
+  declare montoUsdEquivalente: number | null
+
   @column.dateTime()
   declare fechaCreacion: DateTime
 

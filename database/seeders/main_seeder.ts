@@ -170,21 +170,44 @@ export default class extends BaseSeeder {
       { id: 25, monto: 704.94, moneda: 'VES', motivo: 'Producto recibido en mal estado', tienda_id: 3, compania_id: 6, departamento_responsable: 'Cuentas por Pagar', estado: 'pendiente', fecha_creacion: '2026-07-13 00:00:00' },
     ]
 
+    const tasaBcvSeeder = 893.22
+
     for (const nota of rawNotas) {
-      // Cálculo del Motor de Riesgo de Control Interno
       let score = 0
       let justificaciones: string[] = []
+      let tasaCambioBcv: number | null = null
+      let montoUsdEquivalente = Number(nota.monto)
 
-      // 1. Ponderación por Monto
-      if (nota.monto > 3000) {
-        score += 50
-        justificaciones.push(`Monto crítico (> 3,000 ${nota.moneda})`)
-      } else if (nota.monto > 1000) {
-        score += 30
-        justificaciones.push(`Monto moderado (> 1,000 ${nota.moneda})`)
+      if (nota.moneda === 'VES') {
+        tasaCambioBcv = tasaBcvSeeder
+        montoUsdEquivalente = Math.round((Number(nota.monto) / tasaBcvSeeder) * 100) / 100
+        justificaciones.push(
+          `Conversión BCV Oficial: Bs. ${Number(nota.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })} equivalen a $${montoUsdEquivalente.toFixed(2)} USD (Tasa BCV del día: Bs. ${tasaBcvSeeder.toFixed(2)}/USD)`
+        )
+
+        // 1. Umbral Financiero sobre el equivalente real en USD
+        if (montoUsdEquivalente > 3000) {
+          score += 50
+          justificaciones.push('Monto crítico financiero (> $3.000 USD)')
+        } else if (montoUsdEquivalente >= 1000) {
+          score += 30
+          justificaciones.push('Monto moderado ($1.000 - $3.000 USD)')
+        } else {
+          score += 15
+          justificaciones.push('Monto bajo dentro del margen estándar (< $1.000 USD)')
+        }
       } else {
-        score += 15
-        justificaciones.push(`Monto bajo`)
+        // Algoritmo directo para USD
+        if (nota.monto > 3000) {
+          score += 50
+          justificaciones.push(`Monto crítico financiero ($${Number(nota.monto).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD > umbral $3.000)`)
+        } else if (nota.monto >= 1000) {
+          score += 30
+          justificaciones.push(`Monto moderado ($${Number(nota.monto).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD)`)
+        } else {
+          score += 15
+          justificaciones.push(`Monto bajo dentro del margen estándar (< $1.000 USD)`)
+        }
       }
 
       // 2. Ponderación por Motivo
@@ -226,6 +249,8 @@ export default class extends BaseSeeder {
         risk_score: score,
         risk_level: level,
         risk_justification: justificaciones.join(' • '),
+        tasa_cambio_bcv: tasaCambioBcv,
+        monto_usd_equivalente: montoUsdEquivalente,
         fecha_creacion: nota.fecha_creacion,
       })
     }

@@ -64,6 +64,8 @@ interface NotaCredito {
   riskScore: number;
   riskLevel: 'BAJO' | 'MEDIO' | 'ALTO';
   riskJustification: string | null;
+  tasaCambioBcv?: number | null;
+  montoUsdEquivalente?: number | null;
   fechaCreacion: string;
   tienda?: Tienda;
   compania?: Compania;
@@ -93,6 +95,7 @@ interface Props {
   tiendas: Tienda[];
   companias: Compania[];
   departamentos: any[];
+  tasaBcv?: number;
   filtros: {
     estado?: string;
     moneda?: string;
@@ -101,7 +104,15 @@ interface Props {
   };
 }
 
-export default function NotasCreditoPage({ notas, kpis, tiendas, companias, departamentos, filtros }: Props) {
+export default function NotasCreditoPage({
+  notas,
+  kpis,
+  tiendas,
+  companias,
+  departamentos,
+  tasaBcv = 893.22,
+  filtros,
+}: Props) {
   const { auth } = usePage<any>().props;
   const currentUser = auth?.user;
 
@@ -194,19 +205,20 @@ export default function NotasCreditoPage({ notas, kpis, tiendas, companias, depa
     });
   };
 
-  // Cálculo en vivo del Score de Riesgo mientras tipea en el modal de creación
+  // Cálculo en vivo del Score de Riesgo diferenciado (USD directo o VES convertido con tasa BCV)
   const previewScore = () => {
     let score = 0;
     const monto = Number(createForm.data.monto) || 0;
-    const montoUSD = createForm.data.moneda === 'VES' ? monto / 45 : monto;
+    const tasa = tasaBcv || 893.22;
+    const montoUSD = createForm.data.moneda === 'VES' ? (tasa > 0 ? monto / tasa : monto) : monto;
 
     if (montoUSD > 3000) score += 50;
-    else if (montoUSD > 1000) score += 30;
+    else if (montoUSD >= 1000) score += 30;
     else score += 15;
 
     const mot = createForm.data.motivo.toLowerCase();
-    if (mot.includes('mal estado') || mot.includes('vencimiento') || mot.includes('avería')) score += 35;
-    else if (mot.includes('error') || mot.includes('diferencia')) score += 20;
+    if (mot.includes('mal estado') || mot.includes('vencimiento') || mot.includes('avería') || mot.includes('merma')) score += 35;
+    else if (mot.includes('error') || mot.includes('diferencia') || mot.includes('precio') || mot.includes('facturación')) score += 20;
     else score += 10;
 
     if (Number(createForm.data.compania_id) === 4 || Number(createForm.data.compania_id) === 6) score += 15;
@@ -215,6 +227,8 @@ export default function NotasCreditoPage({ notas, kpis, tiendas, companias, depa
     return {
       score,
       level: score >= 70 ? 'ALTO' : score >= 40 ? 'MEDIO' : 'BAJO',
+      montoUSD,
+      tasa,
     };
   };
 
@@ -451,8 +465,15 @@ export default function NotasCreditoPage({ notas, kpis, tiendas, companias, depa
                       </span>
                     </td>
                     <td className="py-2.5 px-3 font-black text-slate-900 whitespace-nowrap">
-                      {nota.moneda === 'USD' ? '$ ' : 'Bs. '}
-                      {Number(nota.monto).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <div>
+                        {nota.moneda === 'USD' ? '$ ' : 'Bs. '}
+                        {Number(nota.monto).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      {nota.moneda === 'VES' && nota.tasaCambioBcv && (
+                        <div className="text-[10px] text-blue-600 font-semibold tracking-tight">
+                          ≈ ${Number(nota.montoUsdEquivalente).toFixed(2)} USD
+                        </div>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700">
@@ -527,19 +548,35 @@ export default function NotasCreditoPage({ notas, kpis, tiendas, companias, depa
                 {/* Resumen de Datos Clave (Grid 4 columnas) */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-xs">
                   <div>
-                    <span className="text-[11px] text-slate-400 font-medium block">Monto</span>
+                    <span className="text-[11px] text-slate-400 font-medium block">Monto Solicitado</span>
                     <span className="text-sm font-black text-[#002B66]">
                       {selectedNota.moneda === 'USD' ? '$ ' : 'Bs. '}
                       {Number(selectedNota.monto).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </span>
+                    {selectedNota.moneda === 'VES' && selectedNota.montoUsdEquivalente && (
+                      <span className="text-[10px] text-blue-700 font-bold block mt-0.5">
+                        ≈ ${Number(selectedNota.montoUsdEquivalente).toFixed(2)} USD
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-medium block">
+                      {selectedNota.moneda === 'VES' ? 'Tasa Oficial BCV' : 'Moneda Transacción'}
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {selectedNota.moneda === 'VES'
+                        ? `Bs. ${Number(selectedNota.tasaCambioBcv || 893.22).toFixed(2)}/USD`
+                        : 'Dólares (USD $)'}
+                    </span>
+                    {selectedNota.moneda === 'VES' && (
+                      <span className="text-[10px] text-emerald-700 font-semibold block mt-0.5">
+                        Verificada en Banco Central
+                      </span>
+                    )}
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">Departamento</span>
                     <span className="font-bold text-slate-800">{selectedNota.departamentoResponsable}</span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-slate-400 font-medium block">Fecha Emisión</span>
-                    <span className="font-bold text-slate-800">{selectedNota.fechaCreacion?.substring(0, 10)}</span>
                   </div>
                   <div>
                     <span className="text-[11px] text-slate-400 font-medium block">Riesgo Control</span>
@@ -766,11 +803,18 @@ export default function NotasCreditoPage({ notas, kpis, tiendas, companias, depa
                   </select>
                 </div>
 
-                {/* Previsualización en Vivo del Risk Score */}
+                {/* Previsualización en Vivo del Risk Score con Tasa BCV Oficial */}
                 {createForm.data.monto && (
-                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between text-xs">
-                    <span className="font-semibold text-blue-900">Previsualización de Riesgo:</span>
-                    {getRiskBadge(previewScore().level, previewScore().score)}
+                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-blue-900">Previsualización de Riesgo:</span>
+                      {getRiskBadge(previewScore().level, previewScore().score)}
+                    </div>
+                    {createForm.data.moneda === 'VES' && (
+                      <p className="text-[11px] text-blue-700 leading-snug">
+                        💱 Conversión Oficial BCV: <strong>Bs. {Number(createForm.data.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</strong> ≈ <strong>${previewScore().montoUSD.toFixed(2)} USD</strong> (Tasa del día: Bs. {previewScore().tasa.toFixed(2)}/USD)
+                      </p>
+                    )}
                   </div>
                 )}
 
