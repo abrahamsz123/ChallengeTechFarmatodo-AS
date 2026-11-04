@@ -187,6 +187,11 @@ export default class NotasCreditoController {
       return response.redirect().back()
     }
 
+    if (!data.tienda_id || !data.compania_id || !data.departamento_responsable) {
+      session.flash('error', 'Debe seleccionar una tienda, un proveedor y un departamento responsable.')
+      return response.redirect().back()
+    }
+
     // Determinar ID del departamento responsable (Cuentas por Pagar = 4, Cuentas por Cobrar = 5)
     let deptoId = 4
     if (data.departamento_responsable === 'Cuentas por Cobrar') {

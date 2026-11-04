@@ -44,124 +44,133 @@ export default function Layout({ children, title }: LayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans pt-16">
       {/* Top Navbar */}
-      <header className="bg-[#002B66] text-white sticky top-0 z-40 shadow-md border-b border-blue-900/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <header className="bg-[#002B66] text-white fixed top-0 left-0 right-0 z-40 shadow-md border-b border-blue-900/40 h-16">
+        <div className="max-w-[1500px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo Oficial Farmatodo */}
           <div className="flex items-center gap-3">
-            <Link href="/dashboard/notas-credito" className="bg-white px-3 py-1.5 rounded-xl shadow-sm hover:opacity-95 transition-opacity flex items-center">
+            <Link
+              href="/dashboard/notas-credito"
+              className="bg-white/95 hover:bg-white px-3 py-1.5 rounded-xl shadow-sm hover:shadow transition-all flex items-center"
+            >
               <img
                 src="/images/farmatodo-logo.png"
                 alt="Farmatodo"
                 className="h-6 sm:h-7 w-auto object-contain"
               />
             </Link>
-            <div className="hidden sm:block">
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-200 border border-blue-400/30">
-                Vicepresidencia de Finanzas
-              </span>
-            </div>
           </div>
 
-          {/* User info & Demo Mode Switcher */}
-          <div className="flex items-center gap-3">
-            {/* Demo Mode Persona Switcher */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowDemoMenu(!showDemoMenu)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-900/60 hover:bg-blue-800 text-xs font-medium text-blue-100 border border-blue-700/50 transition-all shadow-sm"
-                title="Cambio rápido de perfil para evaluación"
-              >
-                <ShieldCheck className="w-4 h-4 text-cyan-300" />
-                <span className="hidden md:inline">Modo Demo:</span>
-                <span className="font-bold text-white truncate max-w-[120px]">{user?.nombreCompleto?.split(' ')[0]}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-blue-300" />
-              </button>
-
-              {showDemoMenu && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 text-slate-800 animate-in fade-in zoom-in-95">
-                  <div className="px-3.5 py-2 border-b border-slate-100">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Alternar Perfil Demo (1 Clic)</p>
-                    <p className="text-xs text-slate-500">Prueba los flujos y permisos de cada rol:</p>
-                  </div>
-                  <div className="p-1 space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => handleDemoSwitch('admin')}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 text-xs flex items-center justify-between group transition-colors"
-                    >
-                      <div>
-                        <div className="font-semibold text-slate-900 group-hover:text-blue-700">👔 Abraham Santana</div>
-                        <div className="text-[10px] text-slate-500">Administrador General VP Finanzas</div>
-                      </div>
-                      <span className="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">Admin</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDemoSwitch('jefe_cxp')}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 text-xs flex items-center justify-between group transition-colors"
-                    >
-                      <div>
-                        <div className="font-semibold text-slate-900 group-hover:text-blue-700">🧑‍💼 Mariana Gómez</div>
-                        <div className="text-[10px] text-slate-500">Jefe · Cuentas por Pagar (Aprueba)</div>
-                      </div>
-                      <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Jefe</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDemoSwitch('colaborador_cxp')}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 text-xs flex items-center justify-between group transition-colors"
-                    >
-                      <div>
-                        <div className="font-semibold text-slate-900 group-hover:text-blue-700">👨‍💻 Andrés Silva</div>
-                        <div className="text-[10px] text-slate-500">Colaborador · Cuentas por Pagar (Crea)</div>
-                      </div>
-                      <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">Colab</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDemoSwitch('colaborador_tesoreria')}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 text-xs flex items-center justify-between group transition-colors"
-                    >
-                      <div>
-                        <div className="font-semibold text-slate-900 group-hover:text-blue-700">👩‍💼 Santiago Méndez</div>
-                        <div className="text-[10px] text-slate-500">Colaborador · Tesorería (Área Externa)</div>
-                      </div>
-                      <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">Tesorería</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Current user pill */}
-            <div className="hidden lg:flex flex-col text-right">
-              <span className="text-xs font-bold leading-tight">{user?.nombreCompleto}</span>
-              <span className="text-[11px] text-blue-200/80">{user?.departamentoNombre} · {user?.cargoNombre}</span>
-            </div>
-
-            {/* Logout button */}
+          {/* User Profile Pill & Dropdown (Modo Demo Integrado Discreto) */}
+          <div className="relative">
             <button
               type="button"
-              onClick={handleLogout}
-              className="p-2 rounded-xl text-blue-200 hover:text-white hover:bg-blue-800 transition-colors"
-              title="Cerrar Sesión"
+              onClick={() => setShowDemoMenu(!showDemoMenu)}
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 transition-all text-left"
             >
-              <LogOut className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-xl bg-white text-[#002B66] font-black text-xs flex items-center justify-center shadow-sm shrink-0">
+                {user?.nombreCompleto?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+              </div>
+              <div className="hidden sm:block leading-tight">
+                <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <span className="truncate max-w-[130px]">{user?.nombreCompleto}</span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-500/30 text-blue-200 uppercase">
+                    {user?.rol}
+                  </span>
+                </div>
+                <div className="text-[11px] text-blue-200/80 truncate max-w-[170px]">
+                  {user?.departamentoNombre}
+                </div>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-blue-200 transition-transform ${showDemoMenu ? 'rotate-180' : ''}`} />
             </button>
+
+            {showDemoMenu && (
+              <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 text-slate-800 animate-in fade-in zoom-in-95">
+                {/* User Info Header */}
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <p className="text-xs font-bold text-slate-900">{user?.nombreCompleto}</p>
+                  <p className="text-[11px] text-slate-500">{user?.cargoNombre}</p>
+                  <p className="text-[10px] text-blue-600 font-medium mt-0.5">{user?.departamentoNombre} · {user?.pais}</p>
+                </div>
+
+                {/* Selector Discreto para Demostración */}
+                <div className="px-3.5 pt-2.5 pb-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Cambiar Perfil Demo (1 Clic)
+                  </p>
+                </div>
+                <div className="px-2 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => handleDemoSwitch('admin')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs flex items-center justify-between group transition-colors"
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-800 group-hover:text-blue-700">👔 Abraham Santana</div>
+                      <div className="text-[10px] text-slate-400">Administrador General</div>
+                    </div>
+                    <span className="text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">Admin</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDemoSwitch('jefe_cxp')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs flex items-center justify-between group transition-colors"
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-800 group-hover:text-blue-700">🧑‍💼 Mariana Gómez</div>
+                      <div className="text-[10px] text-slate-400">Jefe · Cuentas por Pagar (Aprueba)</div>
+                    </div>
+                    <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Jefe</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDemoSwitch('colaborador_cxp')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs flex items-center justify-between group transition-colors"
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-800 group-hover:text-blue-700">👨‍💻 Andrés Silva</div>
+                      <div className="text-[10px] text-slate-400">Colaborador · Cuentas por Pagar (Crea)</div>
+                    </div>
+                    <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full">Colab</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDemoSwitch('colaborador_tesoreria')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs flex items-center justify-between group transition-colors"
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-800 group-hover:text-blue-700">👩‍💼 Santiago Méndez</div>
+                      <div className="text-[10px] text-slate-400">Colaborador · Tesorería</div>
+                    </div>
+                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">Tesorería</span>
+                  </button>
+                </div>
+
+                <div className="mt-2 pt-2 border-t border-slate-100 px-2">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Cerrar Sesión</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       {/* Main Layout Body */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col md:flex-row gap-6">
+      <div className="max-w-[1500px] mx-auto w-full px-4 sm:px-6 py-6 flex-1 flex flex-col md:flex-row gap-5">
         {/* Sidebar Navigation */}
-        <aside className="w-full md:w-64 shrink-0 space-y-4">
+        <aside className="w-full md:w-56 lg:w-60 shrink-0 space-y-4">
           {/* User profile card */}
           <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm">
             <div className="flex items-center gap-3">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import {
   Layers,
@@ -35,6 +35,17 @@ interface Props {
 export default function CargosPage({ cargos, departamentos }: Props) {
   const [selectedDepto, setSelectedDepto] = useState<number | 'all'>('all');
   const [selectedCargo, setSelectedCargo] = useState<Cargo | null>(null);
+
+  useEffect(() => {
+    if (selectedCargo) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedCargo]);
 
   const filteredCargos = cargos.filter(
     (c) => selectedDepto === 'all' || c.departamentoId === selectedDepto
