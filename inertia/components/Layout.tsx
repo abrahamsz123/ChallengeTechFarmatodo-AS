@@ -121,9 +121,21 @@ export default function Layout({ children, title }: LayoutProps) {
                   >
                     <div>
                       <div className="font-semibold text-slate-800 group-hover:text-blue-700">🧑‍💼 Mariana Gómez</div>
-                      <div className="text-[10px] text-slate-400">Jefe · Cuentas por Pagar (Aprueba)</div>
+                      <div className="text-[10px] text-slate-400">Jefe · Cuentas por Pagar (1ra Firma)</div>
                     </div>
                     <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">Jefe</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDemoSwitch('jefe_contraloria')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-slate-50 text-xs flex items-center justify-between group transition-colors"
+                  >
+                    <div>
+                      <div className="font-semibold text-slate-800 group-hover:text-blue-700">⚖️ Guillermo Arismendi</div>
+                      <div className="text-[10px] text-slate-400">Jefe · Contraloría (Control Dual)</div>
+                    </div>
+                    <span className="text-[10px] bg-teal-100 text-teal-700 font-bold px-2 py-0.5 rounded-full">Auditor</span>
                   </button>
 
                   <button

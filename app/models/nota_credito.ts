@@ -38,7 +38,7 @@ export default class NotaCredito extends BaseModel {
   declare creadoPorId: number | null
 
   @column()
-  declare estado: 'pendiente' | 'aprobada' | 'rechazada'
+  declare estado: 'pendiente' | 'aprobada_parcial' | 'aprobada' | 'rechazada'
 
   @column()
   declare riskScore: number
@@ -54,6 +54,21 @@ export default class NotaCredito extends BaseModel {
 
   @column()
   declare montoUsdEquivalente: number | null
+
+  @column()
+  declare requiereDobleAprobacion: boolean
+
+  @column()
+  declare primerAprobadorId: number | null
+
+  @column.dateTime()
+  declare fechaPrimeraAprobacion: DateTime | null
+
+  @column()
+  declare segundoAprobadorId: number | null
+
+  @column.dateTime()
+  declare fechaSegundaAprobacion: DateTime | null
 
   @column.dateTime()
   declare fechaCreacion: DateTime
@@ -75,6 +90,12 @@ export default class NotaCredito extends BaseModel {
 
   @belongsTo(() => User, { foreignKey: 'creadoPorId' })
   declare creador: BelongsTo<typeof User>
+
+  @belongsTo(() => User, { foreignKey: 'primerAprobadorId' })
+  declare primerAprobador: BelongsTo<typeof User>
+
+  @belongsTo(() => User, { foreignKey: 'segundoAprobadorId' })
+  declare segundoAprobador: BelongsTo<typeof User>
 
   @hasMany(() => NotaCreditoAuditoria, { foreignKey: 'notaCreditoId' })
   declare auditorias: HasMany<typeof NotaCreditoAuditoria>

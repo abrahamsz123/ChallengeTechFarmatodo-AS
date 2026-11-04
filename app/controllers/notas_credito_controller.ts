@@ -188,8 +188,7 @@ export default class NotasCreditoController {
   /**
    * Listado principal del proceso de Notas de Crédito & KPIs
    */
-  public async index({ inertia, request, auth, response }: HttpContext) {
-    const user = auth.use('web').user!
+  public async index({ inertia, request, response }: HttpContext) {
     const estado = request.input('estado')
     const moneda = request.input('moneda')
     const riskLevel = request.input('risk_level')
@@ -200,19 +199,13 @@ export default class NotasCreditoController {
       .preload('tienda')
       .preload('compania')
       .preload('departamento')
-      .preload('creador', (q) => q.preload('cargo'))
+      .preload('creador', (q) => q.preload('cargo').preload('departamento'))
+      .preload('primerAprobador', (q) => q.preload('cargo'))
+      .preload('segundoAprobador', (q) => q.preload('cargo'))
       .preload('auditorias', (q) => {
-        q.preload('usuario')
+        q.preload('usuario', (qu) => qu.preload('cargo'))
         q.orderBy('fecha', 'asc')
       })
-
-    // -------------------------------------------------------------------------
-    // Control de Alcance Departamental (RBAC en Backend)
-    // -------------------------------------------------------------------------
-    // Si el usuario es Jefe de Dpto y pertenece a CxP (4) o CxC (5), limitamos sus notas
-    if (user.rol === 'jefe' && (user.departamentoId === 4 || user.departamentoId === 5)) {
-      query.where('departamentoId', user.departamentoId)
-    }
 
     // Filtros dinámicos
     if (estado && estado !== 'todos') {
@@ -248,7 +241,7 @@ export default class NotasCreditoController {
     for (const n of todasLasNotas) {
       if (n.moneda === 'USD') totalUSD += Number(n.monto)
       if (n.moneda === 'VES') totalVES += Number(n.monto)
-      if (n.estado === 'pendiente') pendientes++
+      if (n.estado === 'pendiente' || n.estado === 'aprobada_parcial') pendientes++
       if (n.estado === 'aprobada') aprobadas++
       if (n.estado === 'rechazada') rechazadas++
       if (n.riskLevel === 'ALTO') riesgoAlto++
@@ -346,7 +339,9 @@ export default class NotasCreditoController {
       evaluacion = evaluateUsdRisk(montoNum, data.motivo, Number(data.compania_id))
     }
 
-    // Crear la nota de crédito con la tasa del día guardada en BDD
+    const requiresDual = evaluacion.level === 'ALTO' || user.rol === 'jefe' || user.rol === 'admin'
+
+    // Crear la nota de crédito con la tasa del día guardada en BDD y regla DOA
     const nota = await NotaCredito.create({
       monto: montoNum,
       moneda: data.moneda,
@@ -357,6 +352,7 @@ export default class NotasCreditoController {
       departamentoId: deptoId,
       creadoPorId: user.id, // VITAL: Registra quién solicita para Segregación de Funciones
       estado: 'pendiente',
+      requiereDobleAprobacion: requiresDual,
       riskScore: evaluacion.score,
       riskLevel: evaluacion.level,
       riskJustification: evaluacion.justification,
@@ -402,7 +398,9 @@ export default class NotasCreditoController {
       .preload('tienda')
       .preload('compania')
       .preload('departamento')
-      .preload('creador', (q) => q.preload('cargo'))
+      .preload('creador', (q) => q.preload('cargo').preload('departamento'))
+      .preload('primerAprobador', (q) => q.preload('cargo'))
+      .preload('segundoAprobador', (q) => q.preload('cargo'))
       .preload('auditorias', (q) => {
         q.preload('usuario', (qu) => qu.preload('cargo'))
         q.orderBy('fecha', 'asc')
@@ -415,20 +413,28 @@ export default class NotasCreditoController {
   }
 
   /**
-   * Flujo de Aprobación / Rechazo con Segregación de Funciones (SoD) y Auditoría
+   * Flujo de Aprobación / Rechazo con Matriz DOA, Doble Control y Segregación de Funciones (SoD)
    */
   public async resolver({ params, request, auth, response, session }: HttpContext) {
     const user = auth.use('web').user!
-    const nota = await NotaCredito.findOrFail(params.id)
+    await user.load('cargo')
+    await user.load('departamento')
+
+    const nota = await NotaCredito.query()
+      .where('id', params.id)
+      .preload('creador', (q) => q.preload('cargo').preload('departamento'))
+      .preload('primerAprobador', (q) => q.preload('cargo'))
+      .preload('segundoAprobador', (q) => q.preload('cargo'))
+      .firstOrFail()
 
     // =========================================================================
     // VALIDACIÓN CRÍTICA 1: Segregación de Funciones (SoD)
-    // El solicitante NO puede autoaprobarse su propia solicitud
+    // El solicitante NO puede autoaprobarse su propia solicitud (aplica a todos los roles)
     // =========================================================================
     if (nota.creadoPorId && nota.creadoPorId === user.id) {
-      const msg = '⛔ Violación de Segregación de Funciones (SoD): El colaborador solicitante no tiene autorización para aprobar su propia solicitud.'
+      const msg = '⛔ Violación de Segregación de Funciones (SoD): El usuario solicitante no tiene autorización para dictaminar sobre su propia solicitud.'
       const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
-    if (wantsJson) {
+      if (wantsJson) {
         return response.forbidden({ error: 'SOD_VIOLATION', message: msg })
       }
       session.flash('error', msg)
@@ -440,9 +446,9 @@ export default class NotasCreditoController {
     // Un colaborador común no puede autorizar
     // =========================================================================
     if (user.rol === 'colaborador') {
-      const msg = '⛔ Acceso denegado: Los colaboradores no poseen facultades jerárquicas para autorizar desembolsos o notas de crédito.'
+      const msg = '⛔ Acceso denegado: Los colaboradores no poseen facultades jerárquicas delegadas (DOA) para autorizar notas de crédito.'
       const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
-    if (wantsJson) {
+      if (wantsJson) {
         return response.forbidden({ error: 'FORBIDDEN_ROLE', message: msg })
       }
       session.flash('error', msg)
@@ -450,27 +456,28 @@ export default class NotasCreditoController {
     }
 
     // =========================================================================
-    // VALIDACIÓN CRÍTICA 3: Alcance Departamental
-    // Si es Jefe, debe ser el Jefe del departamento responsable
+    // VALIDACIÓN CRÍTICA 3: Estado previo permitido
+    // Solo se puede dictaminar en 'pendiente' o 'aprobada_parcial'
     // =========================================================================
-    if (user.rol === 'jefe' && nota.departamentoId && user.departamentoId !== nota.departamentoId) {
-      const msg = '⛔ Acceso denegado: Esta nota de crédito pertenece a otro departamento de la VP de Finanzas.'
+    if (nota.estado !== 'pendiente' && nota.estado !== 'aprobada_parcial') {
+      const msg = `La nota de crédito #${nota.id} ya se encuentra resuelta con estado [${nota.estado.toUpperCase()}].`
       const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
-    if (wantsJson) {
-        return response.forbidden({ error: 'DEPARTMENT_MISMATCH', message: msg })
+      if (wantsJson) {
+        return response.badRequest({ message: msg })
       }
       session.flash('error', msg)
       return response.redirect().back()
     }
 
     // =========================================================================
-    // VALIDACIÓN CRÍTICA 4: Estado previo
+    // VALIDACIÓN CRÍTICA 4: Control Dual (Principio de 4 Ojos)
+    // El firmante de la 2da aprobación debe ser independiente al primer aprobador
     // =========================================================================
-    if (nota.estado !== 'pendiente') {
-      const msg = `La nota de crédito #${nota.id} ya se encuentra resuelta con estado [${nota.estado.toUpperCase()}].`
+    if (nota.estado === 'aprobada_parcial' && nota.primerAprobadorId === user.id) {
+      const msg = '⛔ Violación de Control Dual (Principio de 4 Ojos): Ya emitiste la primera firma de autorización. La segunda firma mancomunada debe ser ratificada por un superior independiente.'
       const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
-    if (wantsJson) {
-        return response.badRequest({ message: msg })
+      if (wantsJson) {
+        return response.forbidden({ error: 'DUAL_CONTROL_VIOLATION', message: msg })
       }
       session.flash('error', msg)
       return response.redirect().back()
@@ -483,30 +490,118 @@ export default class NotasCreditoController {
       return response.redirect().back()
     }
 
-    const estadoAnterior = nota.estado
-    nota.estado = accion
-    await nota.save()
+    // =========================================================================
+    // GESTIÓN DE RECHAZO
+    // =========================================================================
+    if (accion === 'rechazada') {
+      const estadoAnterior = nota.estado
+      nota.estado = 'rechazada'
+      await nota.save()
 
-    // Registrar en auditoría inmutable
-    await NotaCreditoAuditoria.create({
-      notaCreditoId: nota.id,
-      userId: user.id,
-      accion: 'resolucion',
-      estadoAnterior: estadoAnterior,
-      estadoNuevo: accion,
-      comentario: comentario || (accion === 'aprobada' ? 'Aprobada tras revisión de jefatura' : 'Rechazada por control interno'),
-      fecha: DateTime.now(),
-    })
+      await NotaCreditoAuditoria.create({
+        notaCreditoId: nota.id,
+        userId: user.id,
+        accion: 'rechazo',
+        estadoAnterior,
+        estadoNuevo: 'rechazada',
+        comentario: comentario || `Rechazada por ${user.nombreCompleto} (${user.rol.toUpperCase()}) en proceso de control interno.`,
+        fecha: DateTime.now(),
+      })
 
-    const successMsg = `Nota de Crédito #${nota.id} ha sido ${accion.toUpperCase()} exitosamente por ${user.nombreCompleto}.`
-
-    const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
-    if (wantsJson) {
-      return response.ok({ message: successMsg, nota })
+      const successMsg = `Nota de Crédito #${nota.id} ha sido RECHAZADA por ${user.nombreCompleto}.`
+      const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+      if (wantsJson) {
+        return response.ok({ message: successMsg, nota })
+      }
+      session.flash('success', successMsg)
+      return response.redirect().back()
     }
 
-    session.flash('success', successMsg)
-    return response.redirect().back()
+    // =========================================================================
+    // GESTIÓN DE APROBACIÓN (MÁQUINA DE ESTADOS DOA CON DOBLE FIRMA)
+    // =========================================================================
+    if (nota.requiereDobleAprobacion) {
+      // Flujo de Doble Aprobación Mancomunada
+      if (nota.estado === 'pendiente') {
+        // Primera Firma (1/2) -> Pasa a estado 'aprobada_parcial'
+        nota.estado = 'aprobada_parcial'
+        nota.primerAprobadorId = user.id
+        nota.fechaPrimeraAprobacion = DateTime.now()
+        await nota.save()
+
+        const commentText = comentario || `Primera firma de autorización (1/2) emitida por ${user.nombreCompleto} (${user.rol.toUpperCase()}). En espera de segunda firma mancomunada de ratificación.`
+
+        await NotaCreditoAuditoria.create({
+          notaCreditoId: nota.id,
+          userId: user.id,
+          accion: 'primera_aprobacion',
+          estadoAnterior: 'pendiente',
+          estadoNuevo: 'aprobada_parcial',
+          comentario: commentText,
+          fecha: DateTime.now(),
+        })
+
+        const successMsg = `✓ Primera firma (1/2) registrada para la Nota #${nota.id} por ${user.nombreCompleto}. Pendiente segunda firma mancomunada.`
+        const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+        if (wantsJson) {
+          return response.ok({ message: successMsg, nota })
+        }
+        session.flash('success', successMsg)
+        return response.redirect().back()
+      } else if (nota.estado === 'aprobada_parcial') {
+        // Segunda Firma (2/2) -> Pasa a estado 'aprobada' definitivo
+        nota.estado = 'aprobada'
+        nota.segundoAprobadorId = user.id
+        nota.fechaSegundaAprobacion = DateTime.now()
+        await nota.save()
+
+        const commentText = comentario || `Segunda firma mancomunada (2/2) ratificada por ${user.nombreCompleto} (${user.rol.toUpperCase()}). Autorización corporativa definitiva completada.`
+
+        await NotaCreditoAuditoria.create({
+          notaCreditoId: nota.id,
+          userId: user.id,
+          accion: 'aprobacion_final',
+          estadoAnterior: 'aprobada_parcial',
+          estadoNuevo: 'aprobada',
+          comentario: commentText,
+          fecha: DateTime.now(),
+        })
+
+        const successMsg = `✓ Aprobación definitiva completada para la Nota #${nota.id} con doble firma mancomunada (SoD & Control Dual satisfechos).`
+        const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+        if (wantsJson) {
+          return response.ok({ message: successMsg, nota })
+        }
+        session.flash('success', successMsg)
+        return response.redirect().back()
+      }
+    } else {
+      // Flujo de Aprobación Simple (1 sola firma requerida)
+      nota.estado = 'aprobada'
+      nota.primerAprobadorId = user.id
+      nota.fechaPrimeraAprobacion = DateTime.now()
+      await nota.save()
+
+      const commentText = comentario || `Aprobada tras revisión de jefatura por ${user.nombreCompleto} (${user.rol.toUpperCase()}).`
+
+      await NotaCreditoAuditoria.create({
+        notaCreditoId: nota.id,
+        userId: user.id,
+        accion: 'aprobacion',
+        estadoAnterior: 'pendiente',
+        estadoNuevo: 'aprobada',
+        comentario: commentText,
+        fecha: DateTime.now(),
+      })
+
+      const successMsg = `Nota de Crédito #${nota.id} ha sido APROBADA exitosamente por ${user.nombreCompleto}.`
+      const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
+      if (wantsJson) {
+        return response.ok({ message: successMsg, nota })
+      }
+      session.flash('success', successMsg)
+      return response.redirect().back()
+    }
   }
 
   /**

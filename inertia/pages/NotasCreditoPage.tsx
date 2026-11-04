@@ -21,6 +21,7 @@ import {
   ArrowRight,
   ShieldAlert,
   Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 
 interface Tienda {
@@ -60,12 +61,17 @@ interface NotaCredito {
   departamentoResponsable: string;
   departamentoId: number | null;
   creadoPorId: number | null;
-  estado: 'pendiente' | 'aprobada' | 'rechazada';
+  estado: 'pendiente' | 'aprobada_parcial' | 'aprobada' | 'rechazada';
   riskScore: number;
   riskLevel: 'BAJO' | 'MEDIO' | 'ALTO';
   riskJustification: string | null;
   tasaCambioBcv?: number | null;
   montoUsdEquivalente?: number | null;
+  requiereDobleAprobacion?: boolean;
+  primerAprobadorId?: number | null;
+  fechaPrimeraAprobacion?: string | null;
+  segundoAprobadorId?: number | null;
+  fechaSegundaAprobacion?: string | null;
   fechaCreacion: string;
   tienda?: Tienda;
   compania?: Compania;
@@ -73,6 +79,20 @@ interface NotaCredito {
     id: number;
     nombreCompleto: string;
     email: string;
+    rol?: string;
+    cargo?: { nombreCargo: string };
+    departamento?: { nombre: string };
+  };
+  primerAprobador?: {
+    id: number;
+    nombreCompleto: string;
+    rol?: string;
+    cargo?: { nombreCargo: string };
+  };
+  segundoAprobador?: {
+    id: number;
+    nombreCompleto: string;
+    rol?: string;
     cargo?: { nombreCargo: string };
   };
   auditorias?: Auditoria[];
@@ -288,12 +308,18 @@ export default function NotasCreditoPage({
     );
   };
 
-  const getStatusBadge = (estado: string) => {
+  const getStatusBadge = (estado: string, requiereDoble?: boolean) => {
     switch (estado) {
       case 'aprobada':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
             <CheckCircle2 className="w-3.5 h-3.5" /> Aprobada
+          </span>
+        );
+      case 'aprobada_parcial':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 animate-pulse">
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Aprobación 1/2
           </span>
         );
       case 'rechazada':
@@ -305,7 +331,8 @@ export default function NotasCreditoPage({
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
-            <Clock className="w-3.5 h-3.5" /> Pendiente
+            <Clock className="w-3.5 h-3.5" />
+            {requiereDoble ? 'Pendiente (Dual)' : 'Pendiente'}
           </span>
         );
     }
@@ -540,7 +567,7 @@ export default function NotasCreditoPage({
                       {getRiskBadge(nota.riskLevel, nota.riskScore)}
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
-                      {getStatusBadge(nota.estado)}
+                      {getStatusBadge(nota.estado, nota.requiereDobleAprobacion)}
                     </td>
                     <td className="py-2.5 px-3 text-right whitespace-nowrap">
                       <button
@@ -569,13 +596,16 @@ export default function NotasCreditoPage({
         {/* MODAL 1: DETALLE Y EXPEDIENTE DE NOTA DE CRÉDITO                   */}
         {/* =================================================================== */}
         {selectedNota && (() => {
-          const isApprover =
-            (currentUser?.rol === 'admin' || currentUser?.rol === 'jefe') &&
-            selectedNota.creadoPorId !== currentUser?.id;
+          const isCreator = selectedNota.creadoPorId === currentUser?.id;
+          const isColaborador = currentUser?.rol === 'colaborador';
+          const isResolved = selectedNota.estado === 'aprobada' || selectedNota.estado === 'rechazada';
+          const alreadySignedFirst =
+            selectedNota.estado === 'aprobada_parcial' && selectedNota.primerAprobadorId === currentUser?.id;
+          const canUserApprove = !isResolved && !isCreator && !isColaborador && !alreadySignedFirst;
 
           return (
             <div className="fixed inset-x-0 bottom-0 top-16 bg-slate-900/50 backdrop-blur-sm z-40 flex items-center justify-center p-4 overflow-y-auto">
-              <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[calc(100vh-6rem)] overflow-y-auto p-6 sm:p-7 space-y-5 animate-in fade-in zoom-in-95 my-auto">
+              <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[calc(100vh-6rem)] overflow-y-auto p-6 sm:p-7 space-y-4 animate-in fade-in zoom-in-95 my-auto">
                 {/* Header */}
                 <div className="flex items-start justify-between border-b border-slate-100 pb-3">
                   <div>
@@ -583,7 +613,7 @@ export default function NotasCreditoPage({
                       <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200/60">
                         Expediente #{selectedNota.id}
                       </span>
-                      {getStatusBadge(selectedNota.estado)}
+                      {getStatusBadge(selectedNota.estado, selectedNota.requiereDobleAprobacion)}
                     </div>
                     <h2 className="text-xl font-black text-slate-900 mt-1">
                       {selectedNota.compania?.nombre}
@@ -671,6 +701,90 @@ export default function NotasCreditoPage({
                   </div>
                 </div>
 
+                {/* Barra de Progreso DOA (Matriz de Delegación de Autoridad) */}
+                <div className="p-3.5 bg-gradient-to-r from-blue-50/80 via-indigo-50/60 to-slate-50 rounded-2xl border border-blue-200/70 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-[#002B66]">
+                      <ShieldCheck className="w-4 h-4 text-blue-600" />
+                      <span>
+                        {selectedNota.requiereDobleAprobacion
+                          ? 'Matriz DOA: Control Dual Mancomunado (Principio de 4 Ojos)'
+                          : 'Matriz DOA: Flujo Estándar de Supervisión (1 Firma)'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white border border-blue-200 text-blue-800 shadow-2xs">
+                      {selectedNota.requiereDobleAprobacion ? '2 Firmas Requeridas' : '1 Firma Requerida'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px]">
+                    {/* Paso 1: Solicitud */}
+                    <div className="p-2.5 bg-white rounded-xl border border-emerald-200 flex items-start gap-2 shadow-2xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-800 block">1. Registro Solicitud</span>
+                        <span className="text-[10px] text-slate-500 block truncate" title={selectedNota.creador?.nombreCompleto}>
+                          {selectedNota.creador?.nombreCompleto || 'Colaborador'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Paso 2: 1ra Firma */}
+                    <div className={`p-2.5 bg-white rounded-xl border flex items-start gap-2 shadow-2xs ${
+                      selectedNota.fechaPrimeraAprobacion ? 'border-emerald-200' : selectedNota.estado === 'rechazada' ? 'border-red-200' : 'border-amber-200 bg-amber-50/30'
+                    }`}>
+                      {selectedNota.fechaPrimeraAprobacion ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : selectedNota.estado === 'rechazada' ? (
+                        <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <Clock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 animate-spin" />
+                      )}
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-800 block">
+                          {selectedNota.requiereDobleAprobacion ? '2. Primera Firma (1/2)' : '2. Aprobación Jefatura'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block truncate" title={selectedNota.primerAprobador?.nombreCompleto}>
+                          {selectedNota.primerAprobador
+                            ? `${selectedNota.primerAprobador.nombreCompleto}`
+                            : selectedNota.estado === 'rechazada' ? 'Rechazada' : 'En espera de firma'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Paso 3: 2da Firma */}
+                    {selectedNota.requiereDobleAprobacion ? (
+                      <div className={`p-2.5 bg-white rounded-xl border flex items-start gap-2 shadow-2xs ${
+                        selectedNota.fechaSegundaAprobacion ? 'border-emerald-200' : selectedNota.estado === 'rechazada' ? 'border-red-200' : 'border-slate-200'
+                      }`}>
+                        {selectedNota.fechaSegundaAprobacion ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        ) : selectedNota.estado === 'rechazada' ? (
+                          <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                        ) : (
+                          <ShieldAlert className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                        )}
+                        <div className="min-w-0">
+                          <span className="font-bold text-slate-800 block">3. Ratificación Final (2/2)</span>
+                          <span className="text-[10px] text-slate-500 block truncate" title={selectedNota.segundoAprobador?.nombreCompleto}>
+                            {selectedNota.segundoAprobador
+                              ? `${selectedNota.segundoAprobador.nombreCompleto}`
+                              : selectedNota.estado === 'aprobada_parcial' ? 'Listo para 2da Firma' : 'En espera de 1ra firma'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 bg-slate-50/50 rounded-xl border border-slate-200/60 flex items-start gap-2 opacity-60">
+                        <CheckCircle2 className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold text-slate-600 block">3. Desembolso Contable</span>
+                          <span className="text-[10px] text-slate-400 block">Automático al aprobar</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Motivo Comercial Registrado */}
                 <div className="space-y-1">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -715,7 +829,13 @@ export default function NotasCreditoPage({
                         <div className="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-blue-600 border-2 border-white shadow-sm" />
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-slate-800 uppercase tracking-wide text-[10px]">
-                            {aud.accion === 'creacion' ? 'Registro de Solicitud' : `Resolución: ${aud.estadoNuevo?.toUpperCase()}`}
+                            {aud.accion === 'creacion'
+                              ? 'Registro de Solicitud'
+                              : aud.accion === 'primera_aprobacion'
+                              ? 'Primera Firma (1/2)'
+                              : aud.accion === 'aprobacion_final'
+                              ? 'Aprobación Mancomunada Final (2/2)'
+                              : `Resolución: ${aud.estadoNuevo?.toUpperCase()}`}
                           </span>
                           <span className="text-[10px] text-slate-400">{aud.fecha?.substring(0, 16)}</span>
                         </div>
@@ -730,12 +850,18 @@ export default function NotasCreditoPage({
                   </div>
                 </div>
 
-                {/* Panel de Dictamen (Solo para Aprobadores con SoD válida) */}
-                {selectedNota.estado === 'pendiente' && isApprover && (
+                {/* Panel de Dictamen DOA o Alerta Informativa */}
+                {canUserApprove ? (
                   <div className="pt-3 border-t border-slate-100 space-y-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
                       <UserCheck className="w-4 h-4 text-blue-600" />
-                      <span>Dictamen de Jefatura (Autorización / Rechazo)</span>
+                      <span>
+                        {selectedNota.requiereDobleAprobacion && selectedNota.estado === 'pendiente'
+                          ? 'Dictamen DOA: Emitir 1ra Firma de Autorización (1/2)'
+                          : selectedNota.requiereDobleAprobacion && selectedNota.estado === 'aprobada_parcial'
+                          ? 'Dictamen DOA: Ratificar 2da Firma Mancomunada Final (2/2)'
+                          : 'Dictamen de Jefatura (Autorización / Rechazo)'}
+                      </span>
                     </div>
 
                     <div>
@@ -746,7 +872,11 @@ export default function NotasCreditoPage({
                         type="text"
                         value={resolveForm.data.comentario}
                         onChange={(e) => resolveForm.setData('comentario', e.target.value)}
-                        placeholder="ej. Validado soporte con guía de recepción física en tienda..."
+                        placeholder={
+                          selectedNota.requiereDobleAprobacion && selectedNota.estado === 'aprobada_parcial'
+                            ? 'ej. Visto bueno gerencial verificado conforme con soportes fiscales...'
+                            : 'ej. Validado soporte con guía de recepción física en tienda...'
+                        }
                         className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20"
                       />
                     </div>
@@ -758,7 +888,13 @@ export default function NotasCreditoPage({
                         className="flex-1 py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-600/20"
                       >
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>Aprobar Solicitud</span>
+                        <span>
+                          {selectedNota.requiereDobleAprobacion && selectedNota.estado === 'pendiente'
+                            ? 'Autorizar 1ra Firma (1/2)'
+                            : selectedNota.requiereDobleAprobacion && selectedNota.estado === 'aprobada_parcial'
+                            ? 'Ratificar Aprobación Final (2/2)'
+                            : 'Aprobar Solicitud'}
+                        </span>
                       </button>
 
                       <button
@@ -770,6 +906,37 @@ export default function NotasCreditoPage({
                         <span>Rechazar Solicitud</span>
                       </button>
                     </div>
+                  </div>
+                ) : (
+                  <div className="pt-2">
+                    {isCreator ? (
+                      <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs flex items-start gap-2.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-amber-900 leading-snug">
+                          <strong>Segregación de Funciones (SoD) Activa:</strong> Registraste esta solicitud. La política corporativa prohíbe la autoaprobación; un superior o jefe par debe emitir el dictamen.
+                        </div>
+                      </div>
+                    ) : alreadySignedFirst ? (
+                      <div className="p-3.5 bg-indigo-50 rounded-2xl border border-indigo-200 text-xs flex items-start gap-2.5">
+                        <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-indigo-900 leading-snug">
+                          <strong>Control Dual (Principio de 4 Ojos):</strong> Ya emitiste la 1ra firma de autorización. La 2da firma mancomunada debe ser completada por un segundo usuario independiente.
+                        </div>
+                      </div>
+                    ) : isColaborador ? (
+                      <div className="p-3.5 bg-slate-100 rounded-2xl border border-slate-200 text-xs flex items-start gap-2.5">
+                        <UserCheck className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-slate-600 leading-snug">
+                          <strong>Perfil Colaborador:</strong> Tu rol no posee facultades de aprobación delegadas (DOA). Esta solicitud debe ser resuelta por Jefatura o Administrador.
+                        </div>
+                      </div>
+                    ) : isResolved ? (
+                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-center text-xs text-slate-500 font-medium">
+                        {selectedNota.estado === 'aprobada'
+                          ? '✓ Solicitud autorizada en su totalidad con trazabilidad completa en auditoría.'
+                          : '✕ Solicitud rechazada por dictamen de control interno.'}
+                      </div>
+                    ) : null}
                   </div>
                 )}
 

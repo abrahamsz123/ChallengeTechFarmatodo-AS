@@ -75,6 +75,7 @@ export default class AuthController {
     const emails: Record<string, string> = {
       admin: 'admin@farmatodo.local',
       jefe_cxp: 'jefe.cxp@farmatodo.local',
+      jefe_contraloria: 'jefe.contraloria@farmatodo.local',
       colaborador_cxp: 'analista.cxp@farmatodo.local',
       jefe_cxc: 'jefe.cxc@farmatodo.local',
       colaborador_tesoreria: 'analista.tesoreria@farmatodo.local',

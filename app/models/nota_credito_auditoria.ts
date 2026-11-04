@@ -17,7 +17,7 @@ export default class NotaCreditoAuditoria extends BaseModel {
   declare userId: number | null
 
   @column()
-  declare accion: 'creacion' | 'resolucion' | 'aprobacion' | 'rechazo'
+  declare accion: 'creacion' | 'resolucion' | 'aprobacion' | 'rechazo' | 'primera_aprobacion' | 'aprobacion_final'
 
   @column()
   declare estadoAnterior: string | null
