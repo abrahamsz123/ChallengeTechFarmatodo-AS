@@ -212,16 +212,43 @@ export default function NotasCreditoPage({
     const tasa = tasaBcv || 893.22;
     const montoUSD = createForm.data.moneda === 'VES' ? (tasa > 0 ? monto / tasa : monto) : monto;
 
-    if (montoUSD > 3000) score += 50;
-    else if (montoUSD >= 1000) score += 30;
-    else score += 15;
+    let montoPts = 15;
+    let montoLabel = '< $1.000 USD';
+    if (montoUSD > 3000) {
+      montoPts = 50;
+      montoLabel = '> $3.000 USD';
+    } else if (montoUSD >= 1000) {
+      montoPts = 30;
+      montoLabel = '$1.000 - $3.000 USD';
+    }
+    score += montoPts;
 
     const mot = createForm.data.motivo.toLowerCase();
-    if (mot.includes('mal estado') || mot.includes('vencimiento') || mot.includes('avería') || mot.includes('merma')) score += 35;
-    else if (mot.includes('error') || mot.includes('diferencia') || mot.includes('precio') || mot.includes('facturación')) score += 20;
-    else score += 10;
+    const isAfectacionFisica = [
+      'mal estado', 'vencimiento', 'vencid', 'avería', 'averia', 'roto', 'rota',
+      'merma', 'dañado', 'dañada', 'daño', 'caducad', 'expirad', 'falta', 'faltante',
+      'incomplet', 'no llegó', 'no llego', 'faltaron', 'deterioro', 'rotura', 'perdida', 'pérdida'
+    ].some((k) => mot.includes(k));
 
-    if (Number(createForm.data.compania_id) === 4 || Number(createForm.data.compania_id) === 6) score += 15;
+    const isInconsistenciaDoc = [
+      'diferencia', 'error', 'duplicidad', 'duplicad', 'precio', 'factura', 'facturación',
+      'facturacion', 'descuadre', 'cobro', 'descuento', 'orden de compra'
+    ].some((k) => mot.includes(k));
+
+    let motivoPts = 10;
+    let motivoLabel = 'Ajuste comercial ordinario';
+    if (isAfectacionFisica) {
+      motivoPts = 35;
+      motivoLabel = 'Afectación física de inventario (merma / avería / faltante)';
+    } else if (isInconsistenciaDoc) {
+      motivoPts = 20;
+      motivoLabel = 'Inconsistencia administrativa / factura';
+    }
+    score += motivoPts;
+
+    const isProvCritico = Number(createForm.data.compania_id) === 4 || Number(createForm.data.compania_id) === 6;
+    const provPts = isProvCritico ? 15 : 0;
+    score += provPts;
 
     score = Math.min(score, 100);
     return {
@@ -229,7 +256,36 @@ export default function NotasCreditoPage({
       level: score >= 70 ? 'ALTO' : score >= 40 ? 'MEDIO' : 'BAJO',
       montoUSD,
       tasa,
+      montoPts,
+      montoLabel,
+      motivoPts,
+      motivoLabel,
+      provPts,
+      isProvCritico,
     };
+  };
+
+  const renderAuditComment = (comentario: string) => {
+    if (!comentario) return null;
+    const parts = comentario.split(/(?<=\))\.\s+|\.\s+(?=[A-ZÁÉÍÓÚ])/).filter(Boolean);
+    if (parts.length > 1) {
+      return (
+        <ul className="mt-1.5 space-y-1">
+          {parts.map((p, idx) => (
+            <li key={idx} className="flex items-start gap-2 text-[11px] text-slate-700 leading-snug">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+              <span>{p.trim().replace(/\.$/, '')}</span>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    return (
+      <div className="flex items-start gap-2 text-[11px] text-slate-700 mt-1 leading-snug">
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+        <span>{comentario}</span>
+      </div>
+    );
   };
 
   const getStatusBadge = (estado: string) => {
@@ -545,69 +601,112 @@ export default function NotasCreditoPage({
                   </button>
                 </div>
 
-                {/* Resumen de Datos Clave (Grid 4 columnas) */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-xs">
-                  <div>
-                    <span className="text-[11px] text-slate-400 font-medium block">Monto Solicitado</span>
-                    <span className="text-sm font-black text-[#002B66]">
-                      {selectedNota.moneda === 'USD' ? '$ ' : 'Bs. '}
-                      {Number(selectedNota.monto).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {/* Resumen de Datos Clave (4 Tarjetas Independientes y Modernas) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  {/* Tarjeta 1: Monto Solicitado */}
+                  <div className="p-3 bg-slate-50/90 rounded-2xl border border-slate-200/80 flex flex-col justify-between shadow-xs">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                      Monto Solicitado
                     </span>
-                    {selectedNota.moneda === 'VES' && selectedNota.montoUsdEquivalente && (
-                      <span className="text-[10px] text-blue-700 font-bold block mt-0.5">
-                        ≈ ${Number(selectedNota.montoUsdEquivalente).toFixed(2)} USD
+                    <div className="mt-1.5">
+                      <span className="text-sm font-black text-[#002B66] block leading-tight">
+                        {selectedNota.moneda === 'USD' ? '$ ' : 'Bs. '}
+                        {Number(selectedNota.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                       </span>
-                    )}
+                      {selectedNota.moneda === 'VES' && selectedNota.montoUsdEquivalente && (
+                        <span className="text-[11px] text-blue-700 font-black block mt-0.5">
+                          ≈ ${Number(selectedNota.montoUsdEquivalente).toFixed(2)} USD
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[11px] text-slate-400 font-medium block">
-                      {selectedNota.moneda === 'VES' ? 'Tasa Oficial BCV' : 'Moneda Transacción'}
+
+                  {/* Tarjeta 2: Tasa Oficial BCV o Moneda */}
+                  <div className="p-3 bg-slate-50/90 rounded-2xl border border-slate-200/80 flex flex-col justify-between shadow-xs">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                      {selectedNota.moneda === 'VES' ? 'Tasa Oficial BCV' : 'Moneda Operación'}
                     </span>
-                    <span className="font-bold text-slate-800">
-                      {selectedNota.moneda === 'VES'
-                        ? `Bs. ${Number(selectedNota.tasaCambioBcv || 893.22).toFixed(2)}/USD`
-                        : 'Dólares (USD $)'}
-                    </span>
-                    {selectedNota.moneda === 'VES' && (
-                      <span className="text-[10px] text-emerald-700 font-semibold block mt-0.5">
-                        Verificada en Banco Central
+                    <div className="mt-1.5">
+                      <span className="text-xs font-black text-slate-800 block leading-tight">
+                        {selectedNota.moneda === 'VES'
+                          ? `Bs. ${Number(selectedNota.tasaCambioBcv || 893.22).toFixed(2)}/USD`
+                          : 'Dólares (USD $)'}
                       </span>
-                    )}
+                      {selectedNota.moneda === 'VES' ? (
+                        <span className="text-[10px] text-emerald-700 font-bold inline-flex items-center gap-1 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                          Banco Central
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+                          Moneda Fuerte
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[11px] text-slate-400 font-medium block">Departamento</span>
-                    <span className="font-bold text-slate-800">{selectedNota.departamentoResponsable}</span>
+
+                  {/* Tarjeta 3: Departamento */}
+                  <div className="p-3 bg-slate-50/90 rounded-2xl border border-slate-200/80 flex flex-col justify-between shadow-xs">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                      Departamento
+                    </span>
+                    <div className="mt-1.5">
+                      <span className="text-xs font-black text-slate-800 block leading-tight">
+                        {selectedNota.departamentoResponsable}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+                        {selectedNota.departamentoResponsable?.includes('Pagar') ? 'Cuentas por Pagar' : 'Cuentas por Cobrar'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[11px] text-slate-400 font-medium block">Riesgo Control</span>
-                    <div className="mt-0.5">{getRiskBadge(selectedNota.riskLevel, selectedNota.riskScore)}</div>
+
+                  {/* Tarjeta 4: Riesgo Control */}
+                  <div className="p-3 bg-slate-50/90 rounded-2xl border border-slate-200/80 flex flex-col justify-between shadow-xs">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                      Riesgo Control
+                    </span>
+                    <div className="mt-1.5">
+                      {getRiskBadge(selectedNota.riskLevel, selectedNota.riskScore)}
+                    </div>
                   </div>
                 </div>
 
-                {/* Motivo Comercial */}
+                {/* Motivo Comercial Registrado */}
                 <div className="space-y-1">
-                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Motivo Comercial Registrado
                   </h4>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70 text-xs text-slate-800 font-medium leading-relaxed">
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs text-slate-800 font-medium leading-relaxed">
                     "{selectedNota.motivo}"
                   </div>
                 </div>
 
-                {/* Evaluación de Riesgo */}
-                <div className="p-3 rounded-xl border border-blue-100 bg-blue-50/50 text-xs space-y-1">
+                {/* Evaluación de Riesgo con Viñetas Verticales (Punto por Punto) */}
+                <div className="p-3.5 rounded-2xl border border-blue-100 bg-blue-50/60 text-xs space-y-2">
                   <div className="flex items-center gap-1.5 font-bold text-blue-900">
                     <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Criterios de Riesgo Evaluados</span>
+                    <span className="text-xs">Criterios de Riesgo Evaluados</span>
                   </div>
-                  <p className="text-[11px] text-slate-600 leading-snug">
-                    {selectedNota.riskJustification || 'Evaluación estándar del despacho comercial.'}
-                  </p>
+                  <ul className="space-y-1.5 pl-0.5">
+                    {selectedNota.riskJustification
+                      ? selectedNota.riskJustification.split(' • ').map((item: string, idx: number) => (
+                          <li key={idx} className="flex items-start gap-2 text-[11px] text-slate-700 leading-snug">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
+                            <span>{item.trim()}</span>
+                          </li>
+                        ))
+                      : (
+                          <li className="flex items-start gap-2 text-[11px] text-slate-600">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
+                            <span>Evaluación estándar del despacho comercial.</span>
+                          </li>
+                        )}
+                  </ul>
                 </div>
 
-                {/* Historial de Auditoría */}
+                {/* Historial de Auditoría Punto por Punto */}
                 <div className="space-y-2">
-                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Historial de Auditoría
                   </h4>
                   <div className="border-l-2 border-blue-200 ml-2.5 pl-3.5 space-y-3">
@@ -620,8 +719,16 @@ export default function NotasCreditoPage({
                           </span>
                           <span className="text-[10px] text-slate-400">{aud.fecha?.substring(0, 16)}</span>
                         </div>
-                        <p className="text-slate-600 mt-0.5">{aud.comentario}</p>
+                        {renderAuditComment(aud.comentario)}
                         {aud.usuario && (
+                          <p className="text-[10px] text-blue-700 font-semibold mt-1">
+                            Operado por: {aud.usuario.nombreCompleto} ({aud.usuario.rol?.toUpperCase()})
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
                           <p className="text-[10px] text-blue-700 font-semibold mt-0.5">
                             Operado por: {aud.usuario.nombreCompleto} ({aud.usuario.rol?.toUpperCase()})
                           </p>
@@ -804,19 +911,63 @@ export default function NotasCreditoPage({
                 </div>
 
                 {/* Previsualización en Vivo del Risk Score con Tasa BCV Oficial */}
-                {createForm.data.monto && (
-                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-blue-900">Previsualización de Riesgo:</span>
-                      {getRiskBadge(previewScore().level, previewScore().score)}
+                {createForm.data.monto && (() => {
+                  const pScore = previewScore();
+                  return (
+                    <div className="p-3.5 bg-gradient-to-br from-blue-50/80 to-slate-50 border border-blue-200/80 rounded-2xl space-y-2.5 text-xs shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 font-bold text-[#002B66]">
+                          <Sparkles className="w-4 h-4 text-blue-600" />
+                          <span>Previsualización de Riesgo en Vivo:</span>
+                        </div>
+                        {getRiskBadge(pScore.level, pScore.score)}
+                      </div>
+
+                      {/* Recuadro Circular de Conversión Oficial BCV */}
+                      {createForm.data.moneda === 'VES' && (
+                        <div className="p-3 bg-white rounded-2xl border border-blue-100 shadow-xs space-y-1">
+                          <div className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span className="text-sm">💱</span>
+                            <span>
+                              Conversión Oficial BCV:{' '}
+                              <strong className="text-blue-900 font-black">
+                                Bs. {Number(createForm.data.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                              </strong>{' '}
+                              ≈{' '}
+                              <strong className="text-emerald-700 font-black">
+                                ${pScore.montoUSD.toFixed(2)} USD
+                              </strong>
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-medium pl-6">
+                            Tasa oficial del día:{' '}
+                            <strong className="text-slate-700">Bs. {pScore.tasa.toFixed(2)} / USD</strong>{' '}
+                            <span className="text-emerald-600 font-semibold">(Verificada en Banco Central de Venezuela)</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Desglose dinámico de factores evaluados */}
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        <span className="px-2 py-0.5 rounded-lg bg-blue-100/70 text-blue-800 text-[10px] font-bold">
+                          Monto: +{pScore.montoPts} pts ({pScore.montoLabel})
+                        </span>
+                        <span className="px-2 py-0.5 rounded-lg bg-indigo-100/70 text-indigo-800 text-[10px] font-bold">
+                          Motivo: +{pScore.motivoPts} pts
+                        </span>
+                        {pScore.isProvCritico ? (
+                          <span className="px-2 py-0.5 rounded-lg bg-red-100 text-red-800 text-[10px] font-black border border-red-200">
+                            Proveedor Alta Incidencia: +15 pts
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-lg bg-slate-200/70 text-slate-700 text-[10px] font-medium">
+                            Proveedor Neutro: +0 pts
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {createForm.data.moneda === 'VES' && (
-                      <p className="text-[11px] text-blue-700 leading-snug">
-                        💱 Conversión Oficial BCV: <strong>Bs. {Number(createForm.data.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</strong> ≈ <strong>${previewScore().montoUSD.toFixed(2)} USD</strong> (Tasa del día: Bs. {previewScore().tasa.toFixed(2)}/USD)
-                      </p>
-                    )}
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div className="flex gap-2 pt-2">
                   <button

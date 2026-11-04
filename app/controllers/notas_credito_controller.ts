@@ -61,12 +61,23 @@ export function evaluateUsdRisk(monto: number, motivo: string, companiaId: numbe
     justificaciones.push(`Monto bajo dentro del margen estándar ($${monto.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD < $1.000)`)
   }
 
-  // 2. Evaluación del Motivo de Reclamación
+  // 2. Evaluación del Motivo de Reclamación (Diccionario ampliado de retail/farmacia)
   const motivoLower = motivo.toLowerCase()
-  if (motivoLower.includes('mal estado') || motivoLower.includes('vencimiento') || motivoLower.includes('avería') || motivoLower.includes('roto') || motivoLower.includes('merma')) {
+  const isAfectacionFisica = [
+    'mal estado', 'vencimiento', 'vencid', 'avería', 'averia', 'roto', 'rota',
+    'merma', 'dañado', 'dañada', 'daño', 'caducad', 'expirad', 'falta', 'faltante',
+    'incomplet', 'no llegó', 'no llego', 'faltaron', 'deterioro', 'rotura', 'perdida', 'pérdida'
+  ].some(k => motivoLower.includes(k))
+
+  const isInconsistenciaDoc = [
+    'diferencia', 'error', 'duplicidad', 'duplicad', 'precio', 'factura', 'facturación',
+    'facturacion', 'descuadre', 'cobro', 'descuento', 'orden de compra'
+  ].some(k => motivoLower.includes(k))
+
+  if (isAfectacionFisica) {
     score += 35
-    justificaciones.push('Afectación física de inventario (merma / avería de producto en despacho)')
-  } else if (motivoLower.includes('diferencia') || motivoLower.includes('error') || motivoLower.includes('duplicidad') || motivoLower.includes('precio')) {
+    justificaciones.push('Afectación física de inventario (merma / avería / faltante en despacho)')
+  } else if (isInconsistenciaDoc) {
     score += 20
     justificaciones.push('Inconsistencia administrativa / descuadre documental de factura')
   } else {
@@ -121,12 +132,23 @@ export async function evaluateVesRisk(montoVes: number, motivo: string, compania
     justificaciones.push('Monto bajo dentro del margen estándar (< $1.000 USD)')
   }
 
-  // 2. Evaluación del Motivo de Reclamación
+  // 2. Evaluación del Motivo de Reclamación (Diccionario ampliado de retail/farmacia)
   const motivoLower = motivo.toLowerCase()
-  if (motivoLower.includes('mal estado') || motivoLower.includes('vencimiento') || motivoLower.includes('avería') || motivoLower.includes('roto') || motivoLower.includes('merma')) {
+  const isAfectacionFisica = [
+    'mal estado', 'vencimiento', 'vencid', 'avería', 'averia', 'roto', 'rota',
+    'merma', 'dañado', 'dañada', 'daño', 'caducad', 'expirad', 'falta', 'faltante',
+    'incomplet', 'no llegó', 'no llego', 'faltaron', 'deterioro', 'rotura', 'perdida', 'pérdida'
+  ].some(k => motivoLower.includes(k))
+
+  const isInconsistenciaDoc = [
+    'diferencia', 'error', 'duplicidad', 'duplicad', 'precio', 'factura', 'facturación',
+    'facturacion', 'descuadre', 'cobro', 'descuento', 'orden de compra'
+  ].some(k => motivoLower.includes(k))
+
+  if (isAfectacionFisica) {
     score += 35
-    justificaciones.push('Afectación física de inventario (merma / avería de producto en despacho)')
-  } else if (motivoLower.includes('diferencia') || motivoLower.includes('error') || motivoLower.includes('duplicidad') || motivoLower.includes('precio')) {
+    justificaciones.push('Afectación física de inventario (merma / avería / faltante en despacho)')
+  } else if (isInconsistenciaDoc) {
     score += 20
     justificaciones.push('Inconsistencia administrativa / descuadre documental de factura')
   } else {
