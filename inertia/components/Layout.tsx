@@ -46,7 +46,7 @@ export default function Layout({ children, title }: LayoutProps) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans pt-16">
       {/* Top Navbar */}
-      <header className="bg-[#002B66] text-white fixed top-0 left-0 right-0 z-40 shadow-md border-b border-blue-900/40 h-16">
+      <header className="bg-[#002B66] text-white fixed top-0 left-0 right-0 z-50 shadow-md border-b border-blue-900/40 h-16">
         <div className="max-w-[1500px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo Oficial Farmatodo */}
           <div className="flex items-center gap-3">

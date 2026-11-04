@@ -497,8 +497,8 @@ export default function NotasCreditoPage({ notas, kpis, tiendas, companias, depa
             selectedNota.creadoPorId !== currentUser?.id;
 
           return (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-7 space-y-5 animate-in fade-in zoom-in-95">
+            <div className="fixed inset-x-0 bottom-0 top-16 bg-slate-900/50 backdrop-blur-sm z-40 flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[calc(100vh-6rem)] overflow-y-auto p-6 sm:p-7 space-y-5 animate-in fade-in zoom-in-95 my-auto">
                 {/* Header */}
                 <div className="flex items-start justify-between border-b border-slate-100 pb-3">
                   <div>
@@ -654,8 +654,8 @@ export default function NotasCreditoPage({ notas, kpis, tiendas, companias, depa
         {/* MODAL 2: CREACIÓN DE NUEVA NOTA DE CRÉDITO                          */}
         {/* =================================================================== */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 sm:p-7 space-y-4 animate-in fade-in zoom-in-95">
+          <div className="fixed inset-x-0 bottom-0 top-16 bg-slate-900/50 backdrop-blur-sm z-40 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 sm:p-7 space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto animate-in fade-in zoom-in-95 my-auto">
               <div className="flex items-start justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-lg font-black text-slate-900">

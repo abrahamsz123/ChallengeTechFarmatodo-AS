@@ -165,8 +165,8 @@ export default function CargosPage({ cargos, departamentos }: Props) {
 
         {/* Modal de Detalle de Cargo */}
         {selectedCargo && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
+          <div className="fixed inset-x-0 bottom-0 top-16 bg-slate-900/50 backdrop-blur-sm z-40 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full p-6 space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto animate-in fade-in zoom-in-95 my-auto">
               <div className="flex items-start justify-between">
                 <div>
                   <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
