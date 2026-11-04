@@ -295,9 +295,11 @@ export default class NotasCreditoController {
 
   /**
    * Registro de una nueva Solicitud de Nota de Crédito
+   * Con validaciones exhaustivas de backend en cada campo (Requisito 4)
    */
   public async store({ request, auth, response, session }: HttpContext) {
     const user = auth.use('web').user!
+    const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
     const data = request.only([
       'monto',
       'moneda',
@@ -307,14 +309,52 @@ export default class NotasCreditoController {
       'departamento_responsable',
     ])
 
+    // 1. Validación de Monto
     const montoNum = Number(data.monto)
     if (isNaN(montoNum) || montoNum <= 0) {
-      session.flash('error', 'El monto debe ser una cifra numérica positiva.')
+      const msg = 'El monto debe ser una cifra numérica positiva mayor a cero.'
+      if (wantsJson) return response.badRequest({ error: 'VALIDATION_ERROR', field: 'monto', message: msg })
+      session.flash('error', msg)
       return response.redirect().back()
     }
 
-    if (!data.tienda_id || !data.compania_id || !data.departamento_responsable) {
-      session.flash('error', 'Debe seleccionar una tienda, un proveedor y un departamento responsable.')
+    // 2. Validación de Moneda
+    if (!data.moneda || !['USD', 'VES'].includes(data.moneda)) {
+      const msg = 'Debe seleccionar una moneda válida (USD o VES).'
+      if (wantsJson) return response.badRequest({ error: 'VALIDATION_ERROR', field: 'moneda', message: msg })
+      session.flash('error', msg)
+      return response.redirect().back()
+    }
+
+    // 3. Validación de Motivo Detallado
+    if (!data.motivo || typeof data.motivo !== 'string' || data.motivo.trim().length < 5) {
+      const msg = 'El motivo detallado es obligatorio y debe tener al menos 5 caracteres.'
+      if (wantsJson) return response.badRequest({ error: 'VALIDATION_ERROR', field: 'motivo', message: msg })
+      session.flash('error', msg)
+      return response.redirect().back()
+    }
+
+    // 4. Validación de Tienda
+    if (!data.tienda_id || isNaN(Number(data.tienda_id))) {
+      const msg = 'Debe seleccionar una tienda de destino válida.'
+      if (wantsJson) return response.badRequest({ error: 'VALIDATION_ERROR', field: 'tienda_id', message: msg })
+      session.flash('error', msg)
+      return response.redirect().back()
+    }
+
+    // 5. Validación de Proveedor / Compañía
+    if (!data.compania_id || isNaN(Number(data.compania_id))) {
+      const msg = 'Debe seleccionar una compañía proveedora válida.'
+      if (wantsJson) return response.badRequest({ error: 'VALIDATION_ERROR', field: 'compania_id', message: msg })
+      session.flash('error', msg)
+      return response.redirect().back()
+    }
+
+    // 6. Validación de Departamento Responsable
+    if (!data.departamento_responsable || !['Cuentas por Pagar', 'Cuentas por Cobrar'].includes(data.departamento_responsable)) {
+      const msg = 'Debe seleccionar un departamento responsable válido (Cuentas por Pagar o Cuentas por Cobrar).'
+      if (wantsJson) return response.badRequest({ error: 'VALIDATION_ERROR', field: 'departamento_responsable', message: msg })
+      session.flash('error', msg)
       return response.redirect().back()
     }
 
@@ -380,7 +420,6 @@ export default class NotasCreditoController {
       ? `Nota de crédito #${nota.id} registrada con éxito. Tasa oficial BCV aplicada: Bs. ${evaluacion.tasaCambioBcv?.toFixed(2)}/USD. Nivel de Riesgo asignado: ${evaluacion.level} (${evaluacion.score}/100).`
       : `Nota de crédito #${nota.id} registrada con éxito. Nivel de Riesgo asignado: ${evaluacion.level} (${evaluacion.score}/100).`
 
-    const wantsJson = request.url().startsWith('/api') || request.header('accept')?.includes('json')
     if (wantsJson) {
       return response.created({ message: msg, nota })
     }
