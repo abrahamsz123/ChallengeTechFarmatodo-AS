@@ -37,7 +37,7 @@ export default function Layout({ children, title }: LayoutProps) {
       case 'admin':
         return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">Administrador VP</span>;
       case 'jefe':
-        return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">Jefe de Departamento</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 whitespace-nowrap">Jefe de Departamento</span>;
       default:
         return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">Colaborador</span>;
     }
