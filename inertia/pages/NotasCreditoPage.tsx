@@ -729,14 +729,6 @@ export default function NotasCreditoPage({
                     ))}
                   </div>
                 </div>
-                          <p className="text-[10px] text-blue-700 font-semibold mt-0.5">
-                            Operado por: {aud.usuario.nombreCompleto} ({aud.usuario.rol?.toUpperCase()})
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
                 {/* Panel de Dictamen (Solo para Aprobadores con SoD válida) */}
                 {selectedNota.estado === 'pendiente' && isApprover && (
