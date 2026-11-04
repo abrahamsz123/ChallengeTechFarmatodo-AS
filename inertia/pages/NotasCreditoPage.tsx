@@ -708,8 +708,8 @@ export default function NotasCreditoPage({
                       <ShieldCheck className="w-4 h-4 text-blue-600" />
                       <span>
                         {selectedNota.requiereDobleAprobacion
-                          ? 'Matriz DOA: Control Dual Mancomunado (Principio de 4 Ojos)'
-                          : 'Matriz DOA: Flujo Estándar de Supervisión (1 Firma)'}
+                          ? 'Flujo de Doble Aprobación Requerida'
+                          : 'Flujo Estándar de Supervisión (1 Firma)'}
                       </span>
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white border border-blue-200 text-blue-800 shadow-2xs">
@@ -834,7 +834,7 @@ export default function NotasCreditoPage({
                               : aud.accion === 'primera_aprobacion'
                               ? 'Primera Firma (1/2)'
                               : aud.accion === 'aprobacion_final'
-                              ? 'Aprobación Mancomunada Final (2/2)'
+                              ? 'Segunda Firma de Aprobación (2/2)'
                               : `Resolución: ${aud.estadoNuevo?.toUpperCase()}`}
                           </span>
                           <span className="text-[10px] text-slate-400">{aud.fecha?.substring(0, 16)}</span>
@@ -850,16 +850,16 @@ export default function NotasCreditoPage({
                   </div>
                 </div>
 
-                {/* Panel de Dictamen DOA (Solo visible si el usuario tiene facultad de aprobar) */}
+                {/* Panel de Dictamen (Solo visible si el usuario tiene facultad de aprobar) */}
                 {canUserApprove && (
                   <div className="pt-3 border-t border-slate-100 space-y-3 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
                       <UserCheck className="w-4 h-4 text-blue-600" />
                       <span>
                         {selectedNota.requiereDobleAprobacion && selectedNota.estado === 'pendiente'
-                          ? 'Dictamen DOA: Emitir 1ra Firma de Autorización (1/2)'
+                          ? 'Emitir 1ra Firma de Aprobación (1/2)'
                           : selectedNota.requiereDobleAprobacion && selectedNota.estado === 'aprobada_parcial'
-                          ? 'Dictamen DOA: Ratificar 2da Firma Mancomunada Final (2/2)'
+                          ? 'Emitir 2da Firma de Aprobación Final (2/2)'
                           : 'Dictamen de Jefatura (Autorización / Rechazo)'}
                       </span>
                     </div>
