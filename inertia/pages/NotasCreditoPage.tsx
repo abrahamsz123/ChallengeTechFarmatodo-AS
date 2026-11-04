@@ -187,6 +187,19 @@ export default function NotasCreditoPage({
   const [riskFilter, setRiskFilter] = useState(filtros.riskLevel || 'todos');
   const [search, setSearch] = useState(filtros.search || '');
 
+  // Filtrado reactivo en tiempo real para el buscador (cero latencia, mayúsculas/minúsculas, ID, motivo, proveedor, tienda)
+  const filteredNotas = notas.filter((nota) => {
+    if (!search || search.trim() === '') return true;
+    const term = search.toLowerCase().trim();
+    const idMatch = String(nota.id).toLowerCase().includes(term);
+    const motivoMatch = (nota.motivo || '').toLowerCase().includes(term);
+    const provMatch = (nota.compania?.nombre || '').toLowerCase().includes(term);
+    const tiendaMatch = (nota.tienda?.nombre || '').toLowerCase().includes(term);
+    const dptoMatch = (nota.departamentoResponsable || '').toLowerCase().includes(term);
+    const creadorMatch = (nota.creador?.nombreCompleto || '').toLowerCase().includes(term);
+    return idMatch || motivoMatch || provMatch || tiendaMatch || dptoMatch || creadorMatch;
+  });
+
   const applyFilters = (newFilters: any) => {
     router.get('/dashboard/notas-credito', {
       estado: newFilters.estado ?? estadoFilter,
@@ -456,11 +469,8 @@ export default function NotasCreditoPage({
               <input
                 type="text"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  applyFilters({ search: e.target.value });
-                }}
-                placeholder="Buscar por ID, motivo o proveedor..."
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por ID, motivo, proveedor o tienda..."
                 className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-800 outline-none focus:bg-white focus:border-blue-600 transition-all"
               />
             </div>
@@ -476,6 +486,7 @@ export default function NotasCreditoPage({
             >
               <option value="todos">Estado: Todos</option>
               <option value="pendiente">Solo Pendientes</option>
+              <option value="aprobada_parcial">Solo Aprobadas Parciales (1ra Firma)</option>
               <option value="aprobada">Solo Aprobadas</option>
               <option value="rechazada">Solo Rechazadas</option>
             </select>
@@ -529,7 +540,7 @@ export default function NotasCreditoPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {notas.map((nota) => (
+                {filteredNotas.map((nota) => (
                   <tr key={nota.id} className="hover:bg-blue-50/40 transition-colors group">
                     <td className="py-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
                       #{nota.id}
@@ -585,7 +596,7 @@ export default function NotasCreditoPage({
             </table>
           </div>
 
-          {notas.length === 0 && (
+          {filteredNotas.length === 0 && (
             <div className="p-12 text-center text-slate-400 text-sm">
               No se encontraron notas de crédito con los filtros seleccionados.
             </div>
@@ -774,11 +785,31 @@ export default function NotasCreditoPage({
                         </div>
                       </div>
                     ) : (
-                      <div className="p-2.5 bg-slate-50/50 rounded-xl border border-slate-200/60 flex items-start gap-2 opacity-60">
-                        <CheckCircle2 className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                      <div className={`p-2.5 rounded-xl border flex items-start gap-2 shadow-2xs ${
+                        selectedNota.estado === 'aprobada'
+                          ? 'bg-white border-emerald-200'
+                          : selectedNota.estado === 'rechazada'
+                          ? 'bg-slate-50/50 border-red-200 opacity-60'
+                          : 'bg-slate-50/50 border-slate-200/60 opacity-60'
+                      }`}>
+                        {selectedNota.estado === 'aprobada' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        ) : selectedNota.estado === 'rechazada' ? (
+                          <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                        )}
                         <div>
-                          <span className="font-semibold text-slate-600 block">3. Desembolso Contable</span>
-                          <span className="text-[10px] text-slate-400 block">Automático al aprobar</span>
+                          <span className={`font-bold block ${selectedNota.estado === 'aprobada' ? 'text-slate-800' : 'text-slate-600'}`}>
+                            3. Desembolso Contable
+                          </span>
+                          <span className={`text-[10px] block ${selectedNota.estado === 'aprobada' ? 'text-emerald-700 font-medium' : 'text-slate-400'}`}>
+                            {selectedNota.estado === 'aprobada'
+                              ? '✓ Ejecutado automáticamente'
+                              : selectedNota.estado === 'rechazada'
+                              ? 'Cancelado por rechazo'
+                              : 'Automático al aprobar'}
+                          </span>
                         </div>
                       </div>
                     )}

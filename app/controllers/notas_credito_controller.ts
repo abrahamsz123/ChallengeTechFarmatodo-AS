@@ -217,10 +217,18 @@ export default class NotasCreditoController {
     if (riskLevel && riskLevel !== 'todos') {
       query.where('riskLevel', riskLevel)
     }
-    if (search) {
+    if (search && search.trim() !== '') {
+      const term = `%${search.trim()}%`
       query.where((q) => {
-        q.whereILike('motivo', `%${search}%`)
-          .orWhereRaw('CAST(id AS TEXT) ILIKE ?', [`%${search}%`])
+        q.whereILike('motivo', term)
+          .orWhereRaw('CAST(id AS TEXT) ILIKE ?', [term])
+          .orWhereILike('departamentoResponsable', term)
+          .orWhereHas('compania', (cq) => {
+            cq.whereILike('nombre', term)
+          })
+          .orWhereHas('tienda', (tq) => {
+            tq.whereILike('nombre', term)
+          })
       })
     }
 
